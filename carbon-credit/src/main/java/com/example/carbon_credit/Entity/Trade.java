@@ -17,10 +17,8 @@ import java.time.LocalDateTime;
 public class Trade {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    // Nếu ID auto-increment, hoặc dùng @GeneratedValue nếu varchar manual
     @Column(name = "id", length = 255, nullable = false)
-    private String id;  // varchar(255) - nếu manual, bỏ GeneratedValue
+    private String id;  // varchar(255) - UUID string, không dùng GeneratedValue
 
     @Column(name = "buy_order_id", length = 255)
     private String buyOrderId;
@@ -45,5 +43,9 @@ public class Trade {
 
     @Column(name = "trade_at")
     private LocalDateTime tradeAt;  // datetime
+
+    @Column(name = "status", length = 30, nullable = false)
+    @Builder.Default
+    private String status = "PENDING";  // Mặc định PENDING, sau update "SETTLED" hoặc "FAILED"
 }
 
