@@ -61,17 +61,15 @@ public class ContractService {
         }
     }
 
-    public String settleTrade(String buyer, String seller, Long amount, Long price) throws Exception {
-        // Note: Contract settleTrade signature: (address buyer, address seller, uint256 amount, uint256 price)
-        // carbonId không có trong contract, được quản lý off-chain trong Order model
+    public String settleTrade(String buyer, String seller, BigInteger amount, BigInteger price) throws Exception {
         TransactionReceipt tx = contract.settleTrade(
-            buyer, seller,
-            BigInteger.valueOf(amount),
-            BigInteger.valueOf(price)
+                buyer, seller,
+                amount,  // BigInteger trực tiếp
+                price    // BigInteger trực tiếp
         ).send();
         return tx.getTransactionHash();
     }
-    
+
     public BigInteger getCarbonEscrow(String user) throws Exception {
         return contract.carbonEscrow(user).send();  // Đổi từ escrowERC20 thành carbonEscrow
     }

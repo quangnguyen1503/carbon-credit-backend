@@ -12,7 +12,9 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
-        registry.addEndpoint("/ws").setAllowedOrigins("*");
+        registry.addEndpoint("/ws")
+                .setAllowedOriginPatterns("*");  // ← SỬA: Patterns thay Origins để hỗ trợ credentials + wildcard
+//                .withSockJS();  // Fallback SockJS cho browser cũ
     }
 
     @Override

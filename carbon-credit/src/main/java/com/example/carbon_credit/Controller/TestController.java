@@ -11,13 +11,5 @@ public class TestController {
     @Autowired
     private ContractService contractService;
 
-    @GetMapping("/test-rpc")
-    public String testRpc() {
-        return contractService.testRpcConnection();
-    }
 
-    @GetMapping("/test-contract")
-    public String testContract() {
-        return contractService.testLoadContract();
-    }
 }

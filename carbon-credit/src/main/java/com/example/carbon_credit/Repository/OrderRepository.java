@@ -10,4 +10,5 @@ import java.util.List;
 @Repository
 public interface OrderRepository extends JpaRepository<Order, String> {
     List<Order> findByOrderTypeAndStatus(String orderType, String status);  // Giờ OK với 'orderType'
+    List<Order> findByUserIdAndStatus(String userId, String status);
 }

@@ -40,9 +40,17 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/login").permitAll()  // Public login
+                        .requestMatchers("/ws/**").permitAll()  // ← SỬA: Double ** để match SockJS subpaths
+                        .requestMatchers("/api/auth/*").permitAll()  // Existing login
+                        .requestMatchers("/api/orders/*").authenticated()  // Your orders endpoint
                         .requestMatchers("/api/projects/save", "/api/projects/allProject").permitAll()  // Public nếu cần
                         .requestMatchers("/api/projects/*/verify").authenticated()  // Bảo vệ verify
                         .requestMatchers("/api/projects/*/approved").authenticated()
+                        .requestMatchers("/api/role-request/confirm").permitAll()
+                        .requestMatchers("/api/role-request/request").authenticated()
+                        .requestMatchers("/api/retire/request").authenticated()
+                        .requestMatchers("/api/retire/approved-retire/*").authenticated()
+                        .requestMatchers("/api/retire/confirm-onchain/*").authenticated()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
