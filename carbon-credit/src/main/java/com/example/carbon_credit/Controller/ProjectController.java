@@ -26,7 +26,7 @@ public class ProjectController {
         return projectService.saveProject(project);
     }
 
-    @GetMapping("allProject")
+    @GetMapping("/allProject")
     public List<Project> getAllProject(){
         return projectService.getAllProject();
     }

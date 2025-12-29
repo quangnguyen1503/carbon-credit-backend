@@ -27,6 +27,9 @@ public class Order {
     @Column(name = "order_type", nullable = false)
     private String orderType; // varchar(20) → BUY | SELL
 
+    @Column(name = "order_condition", nullable = false)
+    private String orderCondition;
+
     @Column(name = "price", nullable = false, precision = 10, scale = 0)
     private BigDecimal price;  // decimal(10,0)
 
@@ -42,4 +45,8 @@ public class Order {
     @Column(name = "created_at", nullable = false)
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime createdAt;  // datetime
+
+    @Column(name = "updated_at", nullable = false)
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss")
+    private LocalDateTime updatedAt;  // datetime
 }
