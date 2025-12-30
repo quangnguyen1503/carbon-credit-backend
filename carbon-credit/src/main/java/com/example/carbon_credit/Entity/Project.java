@@ -34,13 +34,16 @@ public class Project {
     @Column(name = "des", nullable = false, columnDefinition = "TEXT")
     private String description; // text
 
+    @Column(name = "ipfs_hash", nullable = false)
+    private String ipfsHash; // text
+
     @Column(name = "verified_by")
     private String verifiedBy; // varchar(255)
 
     @Column(name = "approved_by")
     private String approvedBy; // varchar(255)
 
-    @Column(name = "expected_credits", nullable = false)
+    @Column(name = "expected_credits")
     private Integer expectedCredits; // int(11)
 
     @Column(name = "status", nullable = false)

@@ -41,7 +41,6 @@ public class OrderService {
     private ObjectMapper objectMapper;  // ← THÊM: Spring auto-inject cho convert JSON/Map
 
     public Order placeOrder(Order order) {
-        // Gen ID nếu chưa có
         if (order.getId() == null) {
             order.setId(UUID.randomUUID().toString());
         }

@@ -1,10 +1,8 @@
 package com.example.carbon_credit.Controller;
 
-import com.example.carbon_credit.DTO.UserDto;  // Tạo DTO mới đơn giản (xem bên dưới)
-import com.example.carbon_credit.DTO.UserDto;
+import com.example.carbon_credit.DTO.UserDTO;  // Tạo DTO mới đơn giản (xem bên dưới)
 import com.example.carbon_credit.Entity.User;
 import com.example.carbon_credit.Service.UserService;
-import com.example.carbon_credit.constants.UserRole;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -22,7 +20,7 @@ public class AdminController {
     @PostMapping("/{id}/set-role")  // Sửa path rõ nghĩa, fix lỗi chính tả
     public ResponseEntity<?> setUserRole(
             @PathVariable String id,
-            @Valid @RequestBody UserDto req,  // Simplify: chỉ cần roleId
+            @Valid @RequestBody UserDTO req,  // Simplify: chỉ cần roleId
             Principal principal
     ) {
         // Check quyền: giả sử principal có user, check role (bạn cần implement getCurrentUser từ principal)

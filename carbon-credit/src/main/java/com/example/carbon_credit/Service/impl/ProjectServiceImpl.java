@@ -2,18 +2,29 @@ package com.example.carbon_credit.Service.impl;
 
 import com.example.carbon_credit.DTO.VerifyRequestDTO;
 import com.example.carbon_credit.Entity.Project;
+import com.example.carbon_credit.Entity.User;
 import com.example.carbon_credit.Repository.ProjectRepository;
+import com.example.carbon_credit.Repository.UserRepository;
+import com.example.carbon_credit.Service.MailService;
 import com.example.carbon_credit.Service.ProjectService;
+import com.example.carbon_credit.Service.UserService;
 import com.example.carbon_credit.constants.ProjectStatus;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 public class ProjectServiceImpl implements ProjectService {
     private final ProjectRepository projectRepository;
+    @Autowired
+    private MailService mailService;
+
+
+    @Autowired
+    private UserRepository userRepository;
 
 
     @Autowired
@@ -27,13 +38,51 @@ public class ProjectServiceImpl implements ProjectService {
     }
     @Override
     public Project saveProject(Project project) {
-//        project.setCreatedAt(Instant.from(java.time.LocalDateTime.now()));
-        return projectRepository.save(project);
+
+        if (project.getId() == null || project.getId().trim().isEmpty()) {
+            project.setId(UUID.randomUUID().toString());  // Generate UUID (unique string)
+            System.out.println("Generated ID: " + project.getId());  // Debug log
+        }
+
+        // Set dates nếu null (optional, nếu DB default không có)
+        if (project.getCreatedAt() == null) {
+            project.setCreatedAt(LocalDateTime.now());
+        }
+        if (project.getUpdatedAt() == null) {
+            project.setUpdatedAt(LocalDateTime.now());
+        }
+
+        if (project.getDescription() == null || project.getDescription().trim().isEmpty()) {
+            project.setDescription("No description provided");  // Hoặc "" nếu DB chấp nhận empty string
+            System.out.println("Set default des = 'No description provided'");
+        }
+
+        // Defaults cho nullable fields (nếu cần)
+        if (project.getVerifiedBy() == null) {
+            project.setVerifiedBy(null);
+        }
+        if (project.getApprovedBy() == null) {
+            project.setApprovedBy(null);
+        }
+
+        // Validate not null fields (optional, để tránh lỗi sau)
+        if (project.getStatus() == null || project.getStatus().trim().isEmpty()) {
+            project.setStatus("SUBMITTED");  // Default từ constants
+        }
+
+
+        // Save và return
+        Project saved = projectRepository.save(project);
+        System.out.println("Saved Project ID: " + saved.getId());  // Debug
+        return saved;
     }
+
     @Override
-    public List<Project> getAllProject() {
-        return projectRepository.findAll();
+    public List<Project> getAllProjectSubmited(String status) {
+        return projectRepository.findByStatus(status);
     }
+
+
 
     // Trong ProjectServiceImpl.java
     @Override
@@ -42,15 +91,25 @@ public class ProjectServiceImpl implements ProjectService {
         if (!project.getStatus().equals(ProjectStatus.SUBMITTED)) {
             throw new RuntimeException("Project is not ready for verification");
         }
+        User owner = userRepository.findById(project.getOwnerId())
+                .orElseThrow(() -> new RuntimeException("Owner not found"));
+
+        String ownerEmail = owner.getEmail();
 
         // Set verifiedBy = verifier's address (hoặc name nếu cần)
         project.setVerifiedBy(verifyName);  // ← THÊM DÒNG NÀY!
 
         if (req.isApproved()) {
             project.setStatus(ProjectStatus.VERIFIED);
+            project.setExpectedCredits(req.getExpectedCredits());
+
+            mailService.sendVerifyProject(ownerEmail, project.getName());
         } else {
             project.setStatus(ProjectStatus.REJECTED_BY_VERIFIER);
+            mailService.sendRejectProject(ownerEmail,project.getName(),req.getReason());
+
         }
+
 
         project.setUpdatedAt(LocalDateTime.now());
         return projectRepository.save(project);
@@ -63,16 +122,26 @@ public class ProjectServiceImpl implements ProjectService {
         }
         project.setApprovedBy(approvedName);
 
+        User owner = userRepository.findById(project.getOwnerId())
+                .orElseThrow(() -> new RuntimeException("Owner not found"));
+
+        String ownerEmail = owner.getEmail();
+
         if(req.isApproved()){
             project.setStatus(ProjectStatus.APPROVED);
+            mailService.sendApproveProject(ownerEmail, project.getName());
+
         }
         else{
             project.setStatus(ProjectStatus.REJECTED_BY_GOV);
+            mailService.sendRejectProject(ownerEmail,project.getName(),req.getReason());
         }
 
         project.setUpdatedAt(LocalDateTime.now());
         return  projectRepository.save(project);
     }
+
+
 
 
 

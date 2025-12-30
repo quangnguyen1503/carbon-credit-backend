@@ -10,16 +10,16 @@ import org.springframework.stereotype.Controller;
 import java.util.List;
 import java.util.Map;
 
-@Controller  // ← WS Controller (không phải @RestController, vì chỉ handle message)
+@Controller
 public class SnapshotController {
 
     @Autowired
     private OrderService orderService;
 
     @Autowired
-    private WsService wsService;  // ← THÊM: Inject WsService để broadcast
+    private WsService wsService;
 
-    // ← FIX: Handle FE publish /app/snapshot, broadcast full to /topic/orderbook
+
     @MessageMapping("/snapshot")  // Catch message từ FE (STOMP destination /app/snapshot)
     public void requestSnapshot() {  // Không return, chỉ broadcast
         System.out.println("Received /app/snapshot request from FE");  // ← THÊM: Debug log confirm handler hit

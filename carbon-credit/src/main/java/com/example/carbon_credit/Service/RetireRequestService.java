@@ -5,9 +5,15 @@ import com.example.carbon_credit.Entity.RetireRequest;
 import com.example.carbon_credit.Repository.RetireRequestRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -36,14 +42,34 @@ public class RetireRequestService {
         request.setTokenId(dto.getTokenId() != null ? dto.getTokenId() : UUID.randomUUID().toString());  // Default UUID
         request.setNftTokenId(dto.getNftTokenId() != null ? dto.getNftTokenId() : "nft_" + UUID.randomUUID().toString());  // Default
 
-        // Nullable fields
         request.setApprovedAt(null);
         request.setApprovedBy(null);
         request.setOnchainTxHash(null);
 
-        // Save – sẽ INSERT mới (persist), không merge
         return retireRequestRepository.save(request);
     }
+
+    public Page<RetireRequest> getRetireWithPaginationAndSort(String status, int pageNumber, int pageSize, String sortBy, String sortDirection){
+        Sort sort =Sort.by(sortBy);
+        if("desc".equalsIgnoreCase(sortDirection)){
+            sort = sort.descending();
+        }else {
+            sort = sort.ascending();
+        }
+
+        Pageable pageable = PageRequest.of(pageNumber, pageSize, sort);
+
+
+        if (status != null) {
+            return retireRequestRepository.findByStatus(status, pageable);
+        } else {
+            return retireRequestRepository.findAll(pageable);
+        }
+
+    }
+
+
+
 
     // Các method khác giữ nguyên (approve và confirm OK, vì chúng dùng findById đúng cho update)
     @Transactional
@@ -77,5 +103,15 @@ public class RetireRequestService {
         // Không set approvedAt nữa (đã set ở approve)
 
         return retireRequestRepository.save(request);
+    }
+
+    public List<RetireRequest> getRetireHistory(LocalDate from, LocalDate to){
+        if(  to == null || from == null){
+            to = LocalDate.now();
+            from = to.minusDays(7);
+        }
+
+        return retireRequestRepository.findByCreatedAtBetween(from.atStartOfDay(), to.atTime(23, 59, 59));
+
     }
 }

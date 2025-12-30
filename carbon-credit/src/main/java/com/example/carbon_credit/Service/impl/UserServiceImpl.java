@@ -1,6 +1,6 @@
 package com.example.carbon_credit.Service.impl;
 
-import com.example.carbon_credit.DTO.UserDto;
+import com.example.carbon_credit.DTO.UserDTO;
 import com.example.carbon_credit.Entity.User;
 import com.example.carbon_credit.Repository.UserRepository;
 import com.example.carbon_credit.Service.UserService;
@@ -24,7 +24,23 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public User setRole(String id, UserDto req) {
+    public User updateProfile(UserDTO dto, String id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        System.out.println(user);
+        if (dto.getName() != null) {
+            user.setName(dto.getName());
+        }
+        if (dto.getEmail() != null) {
+            user.setEmail(dto.getEmail());
+        }
+
+        return userRepository.save(user);
+    }
+
+    @Override
+    public User setRole(String id, UserDTO req) {
         // Validate role hợp lệ (dùng constants)
         String roleId = req.getRoleId();
         if (!isValidRole(roleId)) {
