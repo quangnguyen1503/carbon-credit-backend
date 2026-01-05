@@ -179,13 +179,14 @@ public class ContractService {
         // TransactionReceipt receipt = web3j.ethGetTransactionReceipt(txHash).send().getTransactionReceipt().orElseThrow(() ->
         //     new RuntimeException("Transaction receipt not generated after locking balance")
         // );
+        System.out.printf("Transaction Hash:", txHash);
         TransactionReceipt receipt = waitForReceipt(txHash);
 
         if (receipt.isStatusOK()) {
             log.info("✅ Balance locked successfully");
             log.info("📊 Gas used: {} | Block: {}", receipt.getGasUsed(), receipt.getBlockNumber());
         } else {
-            log.error("❌ Transaction reverted! Status: {}", receipt.getStatus());
+            log.error("❌ Transaction reverted! Status: {}", receipt.getStatus(), receipt.getRevertReason());
             throw new RuntimeException("Transaction reverted - check smart contract conditions");
         }
 

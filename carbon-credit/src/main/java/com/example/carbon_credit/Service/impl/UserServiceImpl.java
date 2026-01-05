@@ -63,4 +63,6 @@ public class UserServiceImpl implements UserService {
                 UserRole.VERIFIER.equals(roleId) ||
                 UserRole.GOVERNMENT.equals(roleId);
     }
+
+
 }

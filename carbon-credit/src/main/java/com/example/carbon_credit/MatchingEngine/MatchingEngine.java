@@ -1,7 +1,7 @@
 package com.example.carbon_credit.MatchingEngine;
 
-import com.example.carbon_credit.DTO.PlaceOrderCommand;
-import com.example.carbon_credit.DTO.TradeEvent;
+import com.example.carbon_credit.DTO.PlaceOrderCommandDTO;
+import com.example.carbon_credit.DTO.TradeEventDTO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -21,7 +21,7 @@ public class MatchingEngine {
     /**
      * Xử lý lệnh: Định tuyến đến đúng OrderBook và thực hiện khớp lệnh
      */
-    public List<TradeEvent> processOrder(PlaceOrderCommand command) {
+    public List<TradeEventDTO> processOrder(PlaceOrderCommandDTO command) {
         String creditId = command.getCreditId();
 
         // Validate command
@@ -43,7 +43,7 @@ public class MatchingEngine {
         }
 
         // Thực hiện thuật toán khớp lệnh
-        List<TradeEvent> trades = orderBook.matchOrder(command);
+        List<TradeEventDTO> trades = orderBook.matchOrder(command);
 
         if (trades.isEmpty()) {
             log.debug("⏳ Order {} added to book, no immediate match", command.getOrderId());
@@ -98,7 +98,7 @@ public class MatchingEngine {
     /**
      * Validate order basic requirements
      */
-    private boolean validateOrder(PlaceOrderCommand command) {
+    private boolean validateOrder(PlaceOrderCommandDTO command) {
         if (command == null) {
             log.error("Order command is null");
             return false;
@@ -137,7 +137,7 @@ public class MatchingEngine {
      * Handle market orders (price = 0)
      * Market order = Limit order với giá cực đoan để đảm bảo khớp ngay
      */
-    private void handleMarketOrder(PlaceOrderCommand command) {
+    private void handleMarketOrder(PlaceOrderCommandDTO command) {
         boolean isBuy = "BUY".equalsIgnoreCase(command.getOrderType());
         
         // Set price to guarantee immediate match

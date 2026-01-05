@@ -1,7 +1,7 @@
 package com.example.carbon_credit.Kafka;
 
-import com.example.carbon_credit.DTO.PlaceOrderCommand;
-import com.example.carbon_credit.DTO.TradeEvent;
+import com.example.carbon_credit.DTO.PlaceOrderCommandDTO;
+import com.example.carbon_credit.DTO.TradeEventDTO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -19,7 +19,7 @@ public class KafkaProducerService {
     /**
      * Gửi lệnh vào topic "orders" (partition theo creditId)
      */
-    public void sendOrder(PlaceOrderCommand command) {
+    public void sendOrder(PlaceOrderCommandDTO command) {
         try {
             kafkaTemplate.send("orders", command.getCreditId(), command)
                     .whenComplete((result, ex) -> {
@@ -38,7 +38,7 @@ public class KafkaProducerService {
     /**
      * Gửi danh sách trades vào topic "trades"
      */
-    public void sendTrades(List<TradeEvent> trades) {
+    public void sendTrades(List<TradeEventDTO> trades) {
         trades.forEach(trade -> {
             try {
                 kafkaTemplate.send("trades", trade.getCreditId(), trade)

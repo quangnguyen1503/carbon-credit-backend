@@ -1,6 +1,6 @@
 package com.example.carbon_credit.Controller;
 
-import com.example.carbon_credit.DTO.PlaceOrderCommand;
+import com.example.carbon_credit.DTO.PlaceOrderCommandDTO;
 import com.example.carbon_credit.Entity.Order;
 import com.example.carbon_credit.Service.OrderService;
 import com.example.carbon_credit.Service.TradingService;
@@ -26,7 +26,7 @@ public class OrderController {
      */
     @PostMapping("/place")
     public ResponseEntity<Order> placeOrder(
-            @RequestBody PlaceOrderCommand request,
+            @RequestBody PlaceOrderCommandDTO request,
             Authentication authentication
     ) {
         String userId = authentication.getName();  // Lấy từ JWT

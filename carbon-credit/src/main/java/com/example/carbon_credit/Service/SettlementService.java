@@ -1,7 +1,7 @@
 package com.example.carbon_credit.Service;
 
 import com.example.carbon_credit.DTO.TradeDTO;
-import com.example.carbon_credit.DTO.TradeEvent;
+import com.example.carbon_credit.DTO.TradeEventDTO;
 import com.example.carbon_credit.Entity.Order;
 import com.example.carbon_credit.Repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
@@ -22,14 +22,14 @@ public class SettlementService {
 
     private final ContractService contractService;
     private final OrderRepository orderRepository;  // ← THÊM
-    private final List<TradeEvent> batchQueue = new ArrayList<>();
+    private final List<TradeEventDTO> batchQueue = new ArrayList<>();
     private final AtomicLong batchIdCounter = new AtomicLong(1);
     private static final int BATCH_SIZE = 10;
 
     /**
      * Add trade to batch queue
      */
-    public synchronized void addTradeToBatch(TradeEvent trade) {
+    public synchronized void addTradeToBatch(TradeEventDTO trade) {
         batchQueue.add(trade);
         log.info("📦 Added trade {} to batch (size: {})", trade.getTradeId(), batchQueue.size());
         
@@ -54,7 +54,7 @@ public class SettlementService {
             List<String> buyOrderIds = new ArrayList<>();
             List<String> sellOrderIds = new ArrayList<>();
 
-            for (TradeEvent tradeEvent : batchQueue) {
+            for (TradeEventDTO tradeEvent : batchQueue) {
                 // 🔍 LẤY WALLET ADDRESS TỪ ORDER
                 Order buyOrder = orderRepository.findById(tradeEvent.getBuyOrderId())
                         .orElseThrow(() -> new IllegalArgumentException(

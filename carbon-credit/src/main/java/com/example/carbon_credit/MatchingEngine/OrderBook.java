@@ -1,7 +1,7 @@
 package com.example.carbon_credit.MatchingEngine;
 
-import com.example.carbon_credit.DTO.PlaceOrderCommand;
-import com.example.carbon_credit.DTO.TradeEvent;
+import com.example.carbon_credit.DTO.PlaceOrderCommandDTO;
+import com.example.carbon_credit.DTO.TradeEventDTO;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -51,7 +51,7 @@ public class OrderBook {
     /**
      * Add order to orderbook
      */
-    public synchronized void addOrder(PlaceOrderCommand order) {
+    public synchronized void addOrder(PlaceOrderCommandDTO order) {
         OrderNode orderNode = new OrderNode(order);
         orderIndex.put(order.getOrderId(), orderNode);
         remainingAmounts.put(order.getOrderId(), order.getAmount());
@@ -70,8 +70,8 @@ public class OrderBook {
      * Match incoming order against orderbook
      * Returns list of trades generated
      */
-    public synchronized List<TradeEvent> matchOrder(PlaceOrderCommand newOrder) {
-        List<TradeEvent> trades = new ArrayList<>();
+    public synchronized List<TradeEventDTO> matchOrder(PlaceOrderCommandDTO newOrder) {
+        List<TradeEventDTO> trades = new ArrayList<>();
         int remaining = newOrder.getAmount();
         remainingAmounts.put(newOrder.getOrderId(), remaining);
 
@@ -115,9 +115,9 @@ public class OrderBook {
             }
 
             // Match with orders at this price level
-            Iterator<PlaceOrderCommand> iterator = priceLevel.getOrders().iterator();
+            Iterator<PlaceOrderCommandDTO> iterator = priceLevel.getOrders().iterator();
             while (iterator.hasNext() && remaining > 0) {
-                PlaceOrderCommand oppOrder = iterator.next();
+                PlaceOrderCommandDTO oppOrder = iterator.next();
                 int oppRemaining = remainingAmounts.getOrDefault(oppOrder.getOrderId(), oppOrder.getAmount());
 
                 if (oppRemaining <= 0) {
@@ -130,7 +130,7 @@ public class OrderBook {
                 int matchAmount = Math.min(remaining, oppRemaining);
 
                 // Create trade
-                TradeEvent trade = TradeEvent.builder()
+                TradeEventDTO trade = TradeEventDTO.builder()
                         .tradeId(UUID.randomUUID().toString())
                         .buyOrderId(isBuy ? newOrder.getOrderId() : oppOrder.getOrderId())
                         .sellOrderId(isBuy ? oppOrder.getOrderId() : newOrder.getOrderId())
@@ -194,7 +194,7 @@ public class OrderBook {
             return false;
         }
 
-        PlaceOrderCommand order = orderNode.getOrder();
+        PlaceOrderCommandDTO order = orderNode.getOrder();
         if ("BUY".equalsIgnoreCase(order.getOrderType())) {
             removeFromBidLevel(order);
         } else {
@@ -210,7 +210,7 @@ public class OrderBook {
     /**
      * Find order by ID
      */
-    public PlaceOrderCommand findOrder(String orderId) {
+    public PlaceOrderCommandDTO findOrder(String orderId) {
         OrderNode node = orderIndex.get(orderId);
         return node != null ? node.getOrder() : null;
     }
@@ -254,7 +254,7 @@ public class OrderBook {
 
     // ==================== PRIVATE METHODS ====================
 
-    private void addToBidLevel(PlaceOrderCommand order, OrderNode orderNode) {
+    private void addToBidLevel(PlaceOrderCommandDTO order, OrderNode orderNode) {
         BidPriceLevel level = bidLevels.get(order.getPrice());
         if (level == null) {
             level = new BidPriceLevel(order.getPrice());
@@ -265,7 +265,7 @@ public class OrderBook {
         level.addOrder(order, orderNode);
     }
 
-    private void addToAskLevel(PlaceOrderCommand order, OrderNode orderNode) {
+    private void addToAskLevel(PlaceOrderCommandDTO order, OrderNode orderNode) {
         AskPriceLevel level = askLevels.get(order.getPrice());
         if (level == null) {
             level = new AskPriceLevel(order.getPrice());
@@ -276,7 +276,7 @@ public class OrderBook {
         level.addOrder(order, orderNode);
     }
 
-    private void removeFromBidLevel(PlaceOrderCommand order) {
+    private void removeFromBidLevel(PlaceOrderCommandDTO order) {
         BidPriceLevel level = bidLevels.get(order.getPrice());
         if (level == null) return;
 
@@ -288,7 +288,7 @@ public class OrderBook {
         }
     }
 
-    private void removeFromAskLevel(PlaceOrderCommand order) {
+    private void removeFromAskLevel(PlaceOrderCommandDTO order) {
         AskPriceLevel level = askLevels.get(order.getPrice());
         if (level == null) return;
 
@@ -312,9 +312,9 @@ public class OrderBook {
 
     @Getter
     public static class OrderNode {
-        private final PlaceOrderCommand order;
+        private final PlaceOrderCommandDTO order;
 
-        public OrderNode(PlaceOrderCommand order) {
+        public OrderNode(PlaceOrderCommandDTO order) {
             this.order = order;
         }
     }
@@ -322,7 +322,7 @@ public class OrderBook {
     @Getter
     public abstract static class PriceLevel {
         private final BigDecimal price;
-        private final LinkedList<PlaceOrderCommand> orders;
+        private final LinkedList<PlaceOrderCommandDTO> orders;
         private int totalVolume;
         private LocalDateTime lastUpdated;
 
@@ -337,13 +337,13 @@ public class OrderBook {
             return orders.isEmpty();
         }
 
-        public void addOrder(PlaceOrderCommand order, OrderNode orderNode) {
+        public void addOrder(PlaceOrderCommandDTO order, OrderNode orderNode) {
             orders.addLast(order);
             totalVolume += order.getAmount();
             lastUpdated = LocalDateTime.now();
         }
 
-        public void removeOrder(PlaceOrderCommand order) {
+        public void removeOrder(PlaceOrderCommandDTO order) {
             orders.removeIf(o -> o.getOrderId().equals(order.getOrderId()));
             totalVolume -= order.getAmount();
             lastUpdated = LocalDateTime.now();

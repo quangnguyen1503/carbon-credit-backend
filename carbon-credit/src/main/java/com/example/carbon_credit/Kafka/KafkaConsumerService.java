@@ -1,7 +1,7 @@
 package com.example.carbon_credit.Kafka;
 
-import com.example.carbon_credit.DTO.PlaceOrderCommand;
-import com.example.carbon_credit.DTO.TradeEvent;
+import com.example.carbon_credit.DTO.PlaceOrderCommandDTO;
+import com.example.carbon_credit.DTO.TradeEventDTO;
 import com.example.carbon_credit.MatchingEngine.MatchingEngine;
 import com.example.carbon_credit.Service.PersistenceService;
 import com.example.carbon_credit.Service.SettlementService;
@@ -35,7 +35,7 @@ public class KafkaConsumerService {
             groupId = "carbon-market-group",
             concurrency = "3"
     )
-    public void consumeOrder(PlaceOrderCommand command, Acknowledgment ack) {
+    public void consumeOrder(PlaceOrderCommandDTO command, Acknowledgment ack) {
         boolean isMarketOrder = command.getPrice().compareTo(BigDecimal.ZERO) == 0;
         String orderTypeDisplay = isMarketOrder ? "MARKET" : "LIMIT";
         
@@ -48,7 +48,7 @@ public class KafkaConsumerService {
 
         try {
             // ⚙️ GỌI MATCHING ENGINE
-            List<TradeEvent> trades = matchingEngine.processOrder(command);
+            List<TradeEventDTO> trades = matchingEngine.processOrder(command);
 
             // 📤 Nếu có trades → Gửi vào topic "trades"
             if (trades != null && !trades.isEmpty()) {
@@ -82,7 +82,7 @@ public class KafkaConsumerService {
             topics = "trades",
             groupId = "carbon-market-group"
     )
-    public void consumeTrade(TradeEvent trade, Acknowledgment ack) {
+    public void consumeTrade(TradeEventDTO trade, Acknowledgment ack) {
         log.info("💰 Processing trade: {} amount={} price={}", 
                 trade.getTradeId(), 
                 trade.getAmount(), 

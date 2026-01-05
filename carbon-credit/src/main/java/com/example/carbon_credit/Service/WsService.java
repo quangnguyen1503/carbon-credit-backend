@@ -1,7 +1,7 @@
 package com.example.carbon_credit.Service;
 
-import com.example.carbon_credit.DTO.TradeEvent;
-import com.example.carbon_credit.DTO.OrderBookUpdate;
+import com.example.carbon_credit.DTO.TradeEventDTO;
+import com.example.carbon_credit.DTO.OrderBookUpdateDTO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -21,7 +21,7 @@ public class WsService {
     /**
      * Broadcast trade event khi có giao dịch mới
      */
-    public void broadcastTrade(TradeEvent trade) {
+    public void broadcastTrade(TradeEventDTO trade) {
         // Gửi đến topic specific cho credit
         messagingTemplate.convertAndSend(
             "/topic/trades/" + trade.getCreditId(),
@@ -38,7 +38,7 @@ public class WsService {
      * Broadcast orderbook update khi có thay đổi
      */
     public void broadcastOrderBookUpdate(String creditId, Map<String, Object> snapshot) {
-        OrderBookUpdate update = OrderBookUpdate.builder()
+        OrderBookUpdateDTO update = OrderBookUpdateDTO.builder()
             .creditId(creditId)
             .bestBid((BigDecimal) snapshot.get("bestBid"))
             .bestAsk((BigDecimal) snapshot.get("bestAsk"))

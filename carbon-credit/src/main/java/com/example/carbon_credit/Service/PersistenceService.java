@@ -1,6 +1,6 @@
 package com.example.carbon_credit.Service;
 
-import com.example.carbon_credit.DTO.TradeEvent;
+import com.example.carbon_credit.DTO.TradeEventDTO;
 import com.example.carbon_credit.Entity.Trade;
 import com.example.carbon_credit.Repository.TradeRepository;
 import lombok.RequiredArgsConstructor;
@@ -16,7 +16,7 @@ public class PersistenceService {
     private final TradeRepository tradeRepository;
 
     @Transactional
-    public void saveHistoricalTrade(TradeEvent event) {
+    public void saveHistoricalTrade(TradeEventDTO event) {
         Trade trade = Trade.builder()
                 .id(event.getTradeId())
                 .buyOrderId(event.getBuyOrderId())

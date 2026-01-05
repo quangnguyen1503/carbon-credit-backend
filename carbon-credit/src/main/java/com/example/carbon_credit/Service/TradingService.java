@@ -1,6 +1,6 @@
 package com.example.carbon_credit.Service;
 
-import com.example.carbon_credit.DTO.PlaceOrderCommand;
+import com.example.carbon_credit.DTO.PlaceOrderCommandDTO;
 import com.example.carbon_credit.Entity.Order;
 import com.example.carbon_credit.Kafka.KafkaProducerService;
 import com.example.carbon_credit.MatchingEngine.MatchingEngine;
@@ -29,7 +29,7 @@ public class TradingService {
      * Place order: Lưu DB + Gửi vào Kafka
      */
     @Transactional
-    public Order placeOrder(PlaceOrderCommand request, String userId) {
+    public Order placeOrder(PlaceOrderCommandDTO request, String userId) {
         // Validation
         if (request.getAmount() <= 0 || request.getPrice().compareTo(java.math.BigDecimal.ZERO) < 0) {
             throw new IllegalArgumentException("Invalid amount or price");
@@ -105,7 +105,7 @@ public class TradingService {
         }
 
         // Tạo command để gửi Kafka
-        PlaceOrderCommand command = PlaceOrderCommand.builder()
+        PlaceOrderCommandDTO command = PlaceOrderCommandDTO.builder()
                 .orderId(order.getId())
                 .userId(userId)
                 .creditId(request.getCreditId())
