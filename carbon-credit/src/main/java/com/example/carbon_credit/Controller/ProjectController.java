@@ -1,5 +1,6 @@
 package com.example.carbon_credit.Controller;
 
+import com.example.carbon_credit.DTO.ProjectResponse;
 import com.example.carbon_credit.DTO.ProjectUploadDto;
 import com.example.carbon_credit.DTO.ProjectUploadResponse;
 import com.example.carbon_credit.DTO.VerifyRequestDTO;
@@ -39,12 +40,17 @@ public class ProjectController {
     }
 
     @GetMapping("/ProjectSubmitted")
-    public List<Project> getAllProjectSubmit(){
+    public List<ProjectResponse> getAllProjectSubmit(){
         return projectService.getAllProjectSubmited(ProjectStatus.SUBMITTED);
+
     }
-    @GetMapping("/ProjectApproved")
-    public List<Project> getAllProjectApproved(){
-        return projectService.getAllProjectSubmited(ProjectStatus.APPROVED);
+    @GetMapping("/MyProject")
+    public List<ProjectResponse> getMyProject( Principal principal){
+        return projectService.getMyProject(principal.getName());
+    }
+    @GetMapping("/ProjectVerified")
+    public List<ProjectResponse> getAllProjectApproved(){
+        return projectService.getAllProjectSubmited(ProjectStatus.VERIFIED);
     }
 
 
@@ -110,9 +116,7 @@ public class ProjectController {
             metadata.put("projectName", dto.getProjectName());
             metadata.put("description", dto.getDescription());
             metadata.put("location", dto.getLocation());
-            metadata.put("methodology", dto.getMethodology());
             metadata.put("vintage", dto.getVintage());
-            metadata.put("price", dto.getPrice());
             metadata.put("receiver", dto.getReceiver());
             metadata.put("image", imageUrl);
             metadata.put("document", docUrl);

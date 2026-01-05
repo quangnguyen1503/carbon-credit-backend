@@ -45,7 +45,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/orders/*").authenticated()  // Your orders endpoint
                         .requestMatchers("/api/projects/save").authenticated()  // Public nếu cần
                         .requestMatchers("/api/projects/ProjectSubmitted").authenticated()
-                        .requestMatchers("/api/projects/ProjectApproved").authenticated()
+                        .requestMatchers("/api/projects/ProjectVerified").authenticated()
+                        .requestMatchers("/api/projects/MyProject").authenticated()
                         .requestMatchers("/api/projects/*/verify").authenticated()  // Bảo vệ verify
                         .requestMatchers("/api/projects/*/approved").authenticated()
                         .requestMatchers("/api/role-request/confirm").permitAll()

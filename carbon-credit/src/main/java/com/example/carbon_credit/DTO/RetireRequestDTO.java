@@ -2,13 +2,16 @@ package com.example.carbon_credit.DTO;
 
 import lombok.Data;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 public class RetireRequestDTO {
-    private String projectId;
-    private int amount;
     private String reason;
-    private String tokenId;
-    private String nftTokenId;
-    private LocalDateTime retireAt;
+    private List<RetireRecordDTO> records;
+
+    @Data
+    public static class RetireRecordDTO {
+        private String tokenId;
+        private Integer amount;
+    }
 }

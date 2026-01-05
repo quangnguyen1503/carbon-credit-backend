@@ -11,25 +11,15 @@ public class ProjectUploadDto {
 
     private String projectName;
 
-
     private String description;
-
 
     private String location;
 
-
-    private String methodology;
-
-
     private String vintage;
-
-
-    private BigDecimal price;
 
     private String receiver;
 
     private BigDecimal carbonAmount;
-
     private MultipartFile imageFile;
     private MultipartFile docFile;
 
