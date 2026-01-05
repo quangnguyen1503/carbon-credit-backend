@@ -6,11 +6,13 @@ import com.example.carbon_credit.Entity.User;
 import com.example.carbon_credit.Repository.RoleRequestRepository;
 import com.example.carbon_credit.Repository.UserRepository;
 import com.example.carbon_credit.constants.RoleRequestStatus;  // Giả sử enum: PENDING, CONFIRMED
+import com.example.carbon_credit.constants.UserRole;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -26,39 +28,40 @@ public class RoleRequestService {
     @Autowired
     private MailService mailService;
 
+
+    public  List<RoleRequest> getRequestConfirm(){
+        return roleRequestRepository.findByStatus(RoleRequestStatus.CONFIRMED);
+    }
+
     @Transactional
     public void requestRole(String userId, RoleRequestDTO dto) {
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
+        if(user.getEmail().isEmpty() ){
+            throw new RuntimeException("You must update your email! ");
 
-        // Check duplicate request (e.g., existing PENDING)
+        }
+
         Optional<RoleRequest> existing = roleRequestRepository.findByUserIdAndStatus(userId, RoleRequestStatus.PENDING);
         if (existing.isPresent()) {
             throw new RuntimeException("You already have a pending role request.");
         }
 
-        // 1. Sinh token email
         String token = UUID.randomUUID().toString();
 
-        // 2. Tạo request - KHÔNG set ID (để Hibernate generate UUID và version=0)
         RoleRequest req = new RoleRequest();
-        // req.setId(...);  // XÓA DÒNG NÀY: Để @GeneratedValue handle
         req.setUserId(userId);
         req.setRequestedRole(dto.getRequestedRole());
         req.setReason(dto.getReason());
         req.setStatus(RoleRequestStatus.PENDING);  // Dùng enum nếu có
         req.setEmailToken(token);
         req.setTokenExpiredAt(LocalDateTime.now().plusMinutes(15));
-        // req.setCreatedAt(...);  // XÓA: Để @CreationTimestamp handle
 
-        // Save: Hibernate tự generate ID, set version=0, insert
         roleRequestRepository.save(req);
 
-        // 3. Link xác nhận - FIX: Bỏ 's' ở "requests"
         String confirmLink = "http://localhost:8080/api/role-request/confirm?token=" + token;
 
-        // 4. Gửi email cho USER
         mailService.sendConfirmRoleEmail(
                 user.getEmail(),
                 dto.getRequestedRole(),
@@ -66,7 +69,6 @@ public class RoleRequestService {
         );
     }
 
-    // Thêm method cho confirm nếu cần (từ controller)
     @Transactional
     public void confirmRoleRequest(String token) {
         RoleRequest req = roleRequestRepository.findByEmailToken(token)
@@ -82,7 +84,6 @@ public class RoleRequestService {
         }
 
         req.setStatus(RoleRequestStatus.CONFIRMED);
-        // Save: Update version++, timestamps
         roleRequestRepository.save(req);
     }
 
@@ -96,7 +97,15 @@ public class RoleRequestService {
         }
         req.setStatus(RoleRequestStatus.APPROVE);
 
+
+
+
+
         User user = userRepository.findById(req.getUserId()).orElseThrow();
+        user.setRoleId(req.getRequestedRole());
+
+
+
         mailService.sendApproveResult(user.getEmail(),req.getRequestedRole());
 
 

@@ -2,12 +2,10 @@ package com.example.carbon_credit.Service;
 
 import com.example.carbon_credit.DTO.LoginRequestDTO;
 import com.example.carbon_credit.DTO.LoginResponse;
-import com.example.carbon_credit.DTO.UserDto;
+import com.example.carbon_credit.DTO.UserDTO;
 import com.example.carbon_credit.Entity.User;
 import com.example.carbon_credit.Repository.UserRepository;
-import com.example.carbon_credit.Service.SignatureVerifierService;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -61,6 +59,7 @@ public class AuthService {
             user.setId(address);  // Giả sử id là String, nếu Long thì parse hoặc dùng UUID
             user.setName("User " + address.substring(2, 10).toUpperCase());  // Default name từ address
             user.setEmail("");  // Optional, có thể yêu cầu update sau
+            user.setDocumentHash("");
             user.setRoleId("USER");  // Hoặc set role_id = 2 nếu dùng FK (String cho linh hoạt)
             user.setCreatedAt(LocalDateTime.now());  // Sửa typo: createAt → createdAt nếu entity có field này
             user = userRepository.save(user);
@@ -70,7 +69,7 @@ public class AuthService {
         String token = generateJwtToken(user);
 
         // Bước 4: Trả response
-        UserDto userDto = new UserDto(user.getId(), user.getName(), user.getRoleId());
+        UserDTO userDto = new UserDTO(user.getId(), user.getName(), user.getRoleId());
         return new LoginResponse(token, userDto);
     }
 

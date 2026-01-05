@@ -1,6 +1,7 @@
 package com.example.carbon_credit.Controller;
 
 import com.example.carbon_credit.DTO.RoleRequestDTO;
+import com.example.carbon_credit.Entity.RoleRequest;
 import com.example.carbon_credit.Service.MailService;
 import com.example.carbon_credit.Service.RoleRequestService;
 import org.slf4j.LoggerFactory;
@@ -12,6 +13,7 @@ import org.springframework.web.bind.annotation.*;
 import org.slf4j.Logger;
 
 import java.security.Principal;
+import java.util.List;
 
 @RestController
 @RequestMapping("api/role-request")
@@ -21,6 +23,12 @@ public class RoleRequestController {
 
     @Autowired
     private RoleRequestService roleRequestService;
+
+
+    @GetMapping("/request-confirm")
+    public ResponseEntity<List<RoleRequest>> getAllRequestConfirm(){
+        return ResponseEntity.ok(roleRequestService.getRequestConfirm());
+    }
 
     @GetMapping("/confirm")
     @Transactional(readOnly = false)

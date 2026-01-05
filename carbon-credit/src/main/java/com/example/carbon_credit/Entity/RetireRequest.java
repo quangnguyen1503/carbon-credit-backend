@@ -18,6 +18,8 @@ public class RetireRequest {
     @Column(name = "user_id", nullable = false, length = 255)
     private String userId;
 
+
+
     @Column(name = "project_id", nullable = false, length = 255)
     private String projectId;
 

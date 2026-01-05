@@ -85,4 +85,69 @@ public class MailService {
             throw new RuntimeException("Reject email failed: " + e.getMessage());
         }
     }
+
+    public void sendVerifyProject(String toEmail, String projectName){
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setFrom(systemEmail);
+        message.setTo(toEmail);
+        message.setSubject("The project has been verified");
+        message.setText(
+                "Dear Owner,\n\n" +
+                        "Your request for project '" + projectName + "' has been verified.\n" +
+                        "Please try again or contact support.\n\n" +
+                        "Thank you!\nCarbon Credit Team"
+        );
+
+        try {
+            mailSender.send(message);
+            log.info(toEmail);
+        }catch (Exception e){
+            log.error("fail to send email to {}: {}", toEmail, e.getMessage(), e);
+
+        }
+    }
+
+    public void sendApproveProject(String toEmail, String projectName){
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setFrom(systemEmail);
+        message.setTo(toEmail);
+        message.setSubject("\n" +
+                "Congratulations, the project has been approved");
+        message.setText(
+                "Dear Owner,\n\n" +
+                        "Your request for project '" + projectName + "' has been approved.\n" +
+                        "Please try again or contact support.\n\n" +
+                        "Thank you!\nCarbon Credit Team"
+        );
+
+        try {
+            mailSender.send(message);
+            log.info(toEmail);
+        }catch (Exception e){
+            log.error("fail to send email to {}: {}", toEmail, e.getMessage(), e);
+
+        }
+    }
+    public void sendRejectProject(String toEmail, String projectName, String reason){
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setFrom(systemEmail);
+        message.setTo(toEmail);
+        message.setSubject("\n" +
+                "The project has been rejected");
+        message.setText(
+                "Dear Owner,\n\n" +
+                        "Your request for project '" + projectName + "' has been reject.\n" +
+                        "Reason: [Add reason if available]\n\n" + reason +
+                        "Please try again or contact support.\n\n" +
+                        "Thank you!\nCarbon Credit Team"
+        );
+
+        try {
+            mailSender.send(message);
+            log.info(toEmail);
+        }catch (Exception e){
+            log.error("fail to send email to {}: {}", toEmail, e.getMessage(), e);
+
+        }
+    }
 }

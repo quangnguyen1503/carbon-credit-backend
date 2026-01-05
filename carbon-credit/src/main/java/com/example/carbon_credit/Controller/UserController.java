@@ -1,0 +1,33 @@
+package com.example.carbon_credit.Controller;
+
+import com.example.carbon_credit.DTO.UserDTO;
+import com.example.carbon_credit.Entity.User;
+import com.example.carbon_credit.Service.ContractService;
+import com.example.carbon_credit.Service.UserService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import javax.swing.text.html.parser.Entity;
+import java.security.Principal;
+
+@RestController
+@RequestMapping("api/user")
+public class UserController {
+
+    @Autowired
+    UserService userService;
+
+    @GetMapping("/profile")
+    public ResponseEntity<?> getProfile(Principal principal){
+        return ResponseEntity.ok(userService.getUserById(principal.getName()));
+    }
+
+    @PutMapping("/updateProfile")
+    public ResponseEntity<?> updateProfile(@RequestBody UserDTO dto , Principal principal){
+        return ResponseEntity.ok(userService.updateProfile(dto, principal.getName()));
+
+    }
+
+
+}
