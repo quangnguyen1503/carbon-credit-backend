@@ -11,7 +11,7 @@ import org.web3j.protocol.http.HttpService;
 @Slf4j
 public class Web3Config {
 
-    @Value("${web3.rpc-url}")  // ✅ FIX: Đúng với application.properties
+    @Value("${web3.rpc-url}")
     private String rpcUrl;
 
     @Value("${web3.chain-id}")

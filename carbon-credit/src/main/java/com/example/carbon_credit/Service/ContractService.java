@@ -176,9 +176,6 @@ public class ContractService {
         }
 
         String txHash = ethSendTransaction.getTransactionHash();
-        // TransactionReceipt receipt = web3j.ethGetTransactionReceipt(txHash).send().getTransactionReceipt().orElseThrow(() ->
-        //     new RuntimeException("Transaction receipt not generated after locking balance")
-        // );
         System.out.printf("Transaction Hash:", txHash);
         TransactionReceipt receipt = waitForReceipt(txHash);
 

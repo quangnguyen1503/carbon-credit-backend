@@ -65,8 +65,8 @@ public class SettlementService {
                             "Sell order not found: " + tradeEvent.getSellOrderId()));
 
                 // userId chính là wallet address
-                String buyerAddress = buyOrder.getUserId();   // ← 0x123...
-                String sellerAddress = sellOrder.getUserId(); // ← 0xabc...
+                String buyerAddress = buyOrder.getUserId();
+                String sellerAddress = sellOrder.getUserId(); 
 
                 // Calculate amounts
                 BigInteger creditTokenId = new BigInteger(tradeEvent.getCreditId());
