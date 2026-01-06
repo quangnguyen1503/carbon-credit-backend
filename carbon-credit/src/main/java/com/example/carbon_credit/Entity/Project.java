@@ -37,6 +37,9 @@ public class Project {
     @Column(name = "ipfs_hash", nullable = false)
     private String ipfsHash; // text
 
+    @Column(name = "onchain_hash", nullable = false)
+    private String onchainHash; // text
+
     @Column(name = "verified_by")
     private String verifiedBy; // varchar(255)
 

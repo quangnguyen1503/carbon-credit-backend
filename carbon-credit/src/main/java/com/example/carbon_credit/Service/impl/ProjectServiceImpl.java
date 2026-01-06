@@ -1,5 +1,6 @@
 package com.example.carbon_credit.Service.impl;
 
+import com.example.carbon_credit.DTO.ProjectResponse;
 import com.example.carbon_credit.DTO.VerifyRequestDTO;
 import com.example.carbon_credit.Entity.Project;
 import com.example.carbon_credit.Entity.User;
@@ -78,10 +79,14 @@ public class ProjectServiceImpl implements ProjectService {
     }
 
     @Override
-    public List<Project> getAllProjectSubmited(String status) {
+    public List<ProjectResponse> getAllProjectSubmited(String status) {
         return projectRepository.findByStatus(status);
     }
 
+    @Override
+    public List<ProjectResponse> getMyProject(String userId) {
+        return projectRepository.findByOwnerId(userId);
+    }
 
 
     // Trong ProjectServiceImpl.java
