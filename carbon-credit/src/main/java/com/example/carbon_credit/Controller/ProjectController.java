@@ -1,13 +1,11 @@
 package com.example.carbon_credit.Controller;
 
-import com.example.carbon_credit.DTO.ProjectResponse;
-import com.example.carbon_credit.DTO.ProjectUploadDto;
-import com.example.carbon_credit.DTO.ProjectUploadResponse;
-import com.example.carbon_credit.DTO.VerifyRequestDTO;
+import com.example.carbon_credit.DTO.*;
 import com.example.carbon_credit.Entity.Project;
 import com.example.carbon_credit.Service.AuthService;
 import com.example.carbon_credit.Service.PinataService;
 import com.example.carbon_credit.Service.ProjectService;
+import com.example.carbon_credit.Service.UserService;
 import com.example.carbon_credit.constants.ProjectStatus;
 import com.example.carbon_credit.constants.UserRole;
 import jakarta.validation.Valid;
@@ -21,6 +19,7 @@ import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @CrossOrigin(origins = "http://localhost:5173")
 @RestController
@@ -32,6 +31,9 @@ public class ProjectController {
     private  AuthService authService;
 
     @Autowired
+    private UserService userService;
+
+    @Autowired
     private PinataService pinataService;
 
     @PostMapping("/save")
@@ -39,21 +41,26 @@ public class ProjectController {
         return projectService.saveProject(project);
     }
 
-    @GetMapping("/ProjectSubmitted")
-    public List<ProjectResponse> getAllProjectSubmit(){
-        return projectService.getAllProjectSubmited(ProjectStatus.SUBMITTED);
+    @GetMapping("/{id}")
+    public Optional<Project> getProject(@PathVariable String id){
+        return projectService.getProjectDetail(id);
+    }
 
+
+    @GetMapping("/ProjectSubmited")
+    public List<Project> getAllProjectSubmit( Principal principal){
+        String userid = principal.getName();
+        String verifierRoleId = userService.getVerifierRoleIdByUsername(userid);
+        return projectService.getProjectByVerify(ProjectStatus.SUBMITTED, verifierRoleId );
     }
     @GetMapping("/MyProject")
     public List<ProjectResponse> getMyProject( Principal principal){
         return projectService.getMyProject(principal.getName());
     }
     @GetMapping("/ProjectVerified")
-    public List<ProjectResponse> getAllProjectApproved(){
+    public List<Project> getAllProjectApproved(){
         return projectService.getAllProjectSubmited(ProjectStatus.VERIFIED);
     }
-
-
 
     @PostMapping("/{id}/verify")
     public ResponseEntity<?> verifyProject(
@@ -73,17 +80,22 @@ public class ProjectController {
     @PostMapping("/{id}/approved")
     public ResponseEntity<?> approved(
             @PathVariable String id,
-            @RequestBody VerifyRequestDTO req,
+            @RequestBody ApprovedRequestDTO req,
             Principal principal
-    ){
-        // Role check
+    ) {
         if (!authService.hasRole(principal.getName(), UserRole.GOVERNMENT)) {
-            return ResponseEntity.status(403).body("You are not a goverment");
+            return ResponseEntity.status(403).body("You are not a government");
         }
-        Project result = projectService.ApprovedProject(id, req, principal.getName());
-        return ResponseEntity.ok(result);
 
+        Project result = projectService.ApprovedProject(
+                id,
+                req,
+                principal.getName()
+        );
+
+        return ResponseEntity.ok(result);
     }
+
 
     /**
      * POST /api/projects/upload

@@ -31,14 +31,20 @@ public class Project {
     @Column(name = "location", nullable = false)
     private String location; // varchar(255)
 
+    @Column(name = "verifier_role_id", nullable = false)
+    private String verifierRoleId; // varchar(255)
+
     @Column(name = "des", nullable = false, columnDefinition = "TEXT")
     private String description; // text
 
     @Column(name = "ipfs_hash", nullable = false)
     private String ipfsHash; // text
 
-    @Column(name = "onchain_hash", nullable = false)
+    @Column(name = "onchain_hash")
     private String onchainHash; // text
+
+    @Column(name = "nft_token_id")
+    private long nftTokenId; // text
 
     @Column(name = "verified_by")
     private String verifiedBy; // varchar(255)

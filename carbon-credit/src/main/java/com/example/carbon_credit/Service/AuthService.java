@@ -61,6 +61,7 @@ public class AuthService {
             user.setEmail("");  // Optional, có thể yêu cầu update sau
             user.setDocumentHash("");
             user.setRoleId("USER");  // Hoặc set role_id = 2 nếu dùng FK (String cho linh hoạt)
+            user.setVerifierRoleId("");
             user.setCreatedAt(LocalDateTime.now());  // Sửa typo: createAt → createdAt nếu entity có field này
             user = userRepository.save(user);
         }
@@ -69,7 +70,7 @@ public class AuthService {
         String token = generateJwtToken(user);
 
         // Bước 4: Trả response
-        UserDTO userDto = new UserDTO(user.getId(), user.getName(), user.getRoleId());
+        UserDTO userDto = new UserDTO(user.getId(), user.getName(), user.getRoleId(), user.getDocumentHash(),user.getVerifierRoleId() );
         return new LoginResponse(token, userDto);
     }
 

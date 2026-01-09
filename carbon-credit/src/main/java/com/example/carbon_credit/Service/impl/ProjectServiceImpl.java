@@ -1,20 +1,23 @@
 package com.example.carbon_credit.Service.impl;
 
+import com.example.carbon_credit.DTO.ApprovedRequestDTO;
 import com.example.carbon_credit.DTO.ProjectResponse;
 import com.example.carbon_credit.DTO.VerifyRequestDTO;
+import com.example.carbon_credit.Entity.CarbonCredit;
 import com.example.carbon_credit.Entity.Project;
 import com.example.carbon_credit.Entity.User;
+import com.example.carbon_credit.Repository.CarbonCreditRepository;
 import com.example.carbon_credit.Repository.ProjectRepository;
 import com.example.carbon_credit.Repository.UserRepository;
 import com.example.carbon_credit.Service.MailService;
 import com.example.carbon_credit.Service.ProjectService;
-import com.example.carbon_credit.Service.UserService;
 import com.example.carbon_credit.constants.ProjectStatus;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -27,6 +30,9 @@ public class ProjectServiceImpl implements ProjectService {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    CarbonCreditRepository carbonCreditRepository;
+
 
     @Autowired
     public ProjectServiceImpl(ProjectRepository projectRepository) {
@@ -37,6 +43,8 @@ public class ProjectServiceImpl implements ProjectService {
         return projectRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Project not found"));
     }
+
+
     @Override
     public Project saveProject(Project project) {
 
@@ -79,13 +87,23 @@ public class ProjectServiceImpl implements ProjectService {
     }
 
     @Override
-    public List<ProjectResponse> getAllProjectSubmited(String status) {
+    public List<Project> getAllProjectSubmited(String status) {
         return projectRepository.findByStatus(status);
     }
 
     @Override
+    public List<Project> getProjectByVerify(String status, String verifierRoleId) {
+        return projectRepository.findByStatusAndVerifierRoleId(status, verifierRoleId);
+    }
+
+    @Override
+    public Optional<Project> getProjectDetail(String id) {
+        return projectRepository.findById(id);
+    }
+
+    @Override
     public List<ProjectResponse> getMyProject(String userId) {
-        return projectRepository.findByOwnerId(userId);
+        return projectRepository.findAllByOwnerId(userId);
     }
 
 
@@ -120,7 +138,7 @@ public class ProjectServiceImpl implements ProjectService {
         return projectRepository.save(project);
     }
     @Override
-    public Project ApprovedProject(String id, VerifyRequestDTO req, String approvedName){
+    public Project ApprovedProject(String id, ApprovedRequestDTO req, String approvedName){
         Project project =  getProject(id);
         if(!project.getStatus().equals(ProjectStatus.VERIFIED)){
             throw new RuntimeException("Project is no ready for approved");
@@ -134,7 +152,19 @@ public class ProjectServiceImpl implements ProjectService {
 
         if(req.isApproved()){
             project.setStatus(ProjectStatus.APPROVED);
+            project.setNftTokenId(req.getNftTokenId());
+            CarbonCredit carbonCredit = CarbonCredit.builder()
+                    .id(UUID.randomUUID().toString())
+                    .tokenId(req.getTokenId())
+                    .projectId(project.getId())
+                    .totalAmount(project.getExpectedCredits())
+                    .retiredAmount(0)
+                    .issueAmount(0)
+                    .build();
+            carbonCreditRepository.save(carbonCredit);
             mailService.sendApproveProject(ownerEmail, project.getName());
+
+
 
         }
         else{

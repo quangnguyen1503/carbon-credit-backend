@@ -21,6 +21,8 @@ public class RoleRequest {
     @Column(name = "requested_role")
     private String requestedRole;
 
+    private String verifierRoleId;
+
     private String reason;
 
     private String status;

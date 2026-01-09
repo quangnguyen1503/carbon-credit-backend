@@ -31,6 +31,8 @@ public class User {
     @Column(name = "role_id")
     private String roleId;
 
+    private String verifierRoleId;
+
     // SỬA create_at → created_at
     @CreationTimestamp
     @Column(name = "created_at")

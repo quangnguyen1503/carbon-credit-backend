@@ -42,15 +42,15 @@ public class RoleRequestController {
         }
     }
 
-    @PostMapping("/request")
-    public ResponseEntity<?> requestRole(@RequestBody RoleRequestDTO dto, Principal principal) {
-        try {
-            roleRequestService.requestRole(principal.getName(), dto);
-            return ResponseEntity.ok("Role request sent. Please check your email.");
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(new String[] {"Error: " + e.getMessage()});  // Match body array format nếu cần
+        @PostMapping("/request")
+        public ResponseEntity<?> requestRole(@RequestBody RoleRequestDTO dto, Principal principal) {
+            try {
+                roleRequestService.requestRole(principal.getName(), dto);
+                return ResponseEntity.ok("Role request sent. Please check your email.");
+            } catch (Exception e) {
+                return ResponseEntity.badRequest().body(new String[] {"Error: " + e.getMessage()});  // Match body array format nếu cần
+            }
         }
-    }
     @PutMapping("/approve/{requestId}")
     public ResponseEntity<?> approveRoleRequest(@PathVariable String requestId) {
         try {
