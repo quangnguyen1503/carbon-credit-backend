@@ -8,4 +8,6 @@ public interface UserService {
     User getUserById(String id);
     User updateProfile(UserDTO dto, String id);
 
+    String getVerifierRoleIdByUsername(String userid);
+
 }

@@ -1,15 +1,17 @@
 package com.example.carbon_credit.Service;
 
+import com.example.carbon_credit.DTO.ApprovedRequestDTO;
 import com.example.carbon_credit.DTO.ProjectResponse;
 import com.example.carbon_credit.DTO.VerifyRequestDTO;
 import com.example.carbon_credit.Entity.Project;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface ProjectService {
 
     Project saveProject(Project project);
-    List<ProjectResponse> getAllProjectSubmited(String status);
+    List<Project> getAllProjectSubmited(String status);
 
     List<ProjectResponse> getMyProject(String userId);
 
@@ -17,7 +19,11 @@ public interface ProjectService {
     Project getProject(String id);
     Project VerifyProject(String id, VerifyRequestDTO req, String VerifyName);
 
-    Project ApprovedProject(String id, VerifyRequestDTO req, String VerifyName);
+    Project ApprovedProject(String id, ApprovedRequestDTO req, String VerifyName);
+
+    List<Project>  getProjectByVerify(String status, String verifierRoleId);
+
+    Optional<Project> getProjectDetail(String id );
 
 
 

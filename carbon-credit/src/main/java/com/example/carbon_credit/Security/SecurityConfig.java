@@ -44,7 +44,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/*").permitAll()  // Existing login
                         .requestMatchers("/api/orders/*").authenticated()  // Your orders endpoint
                         .requestMatchers("/api/projects/save").authenticated()  // Public nếu cần
-                        .requestMatchers("/api/projects/ProjectSubmitted").authenticated()
+                        .requestMatchers("/api/projects/ProjectSubmited").authenticated()
                         .requestMatchers("/api/projects/ProjectVerified").authenticated()
                         .requestMatchers("/api/projects/MyProject").authenticated()
                         .requestMatchers("/api/projects/*/verify").authenticated()  // Bảo vệ verify
@@ -56,8 +56,16 @@ public class SecurityConfig {
                         .requestMatchers("/api/retire/all").authenticated()
                         .requestMatchers("/api/retire/approved-retire/*").authenticated()
                         .requestMatchers("/api/retire/confirm-onchain/*").authenticated()
-                        .requestMatchers("api/user/updateProfile").authenticated()
-                        .requestMatchers("api/user/Profile").authenticated()
+                        .requestMatchers("/api/user/updateProfile").authenticated()
+                        .requestMatchers("/api/user/Profile").authenticated()
+                        .requestMatchers("/api/wallet/my-credits").authenticated()
+                        .requestMatchers("/api/certificates/retire").authenticated()
+                        .requestMatchers("/api/certificates/my-certificate").authenticated()
+                        .requestMatchers("/api/certificates/certificate-detail").authenticated()
+                        .requestMatchers("/api/projects/{projectId}/mint").authenticated()
+                        .requestMatchers("/api/verifier-role/all").permitAll()
+                        .requestMatchers("/api/projects/*").permitAll()
+
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

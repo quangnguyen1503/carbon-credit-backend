@@ -11,20 +11,20 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "carbon_credits")
+@Table(name = "mint_history")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class CarbonCredit {
+public class MintHistory {
+
     @Id
     private String id;
     private String projectId;
-    private long tokenId;
-    private long totalAmount;
-    private long issueAmount;
-    private long retiredAmount;
-
-
-
+    private String creditId;
+    private String userId;
+    private long mintAmount;
+    private String txHash;
+    private LocalDateTime createdAt;
 }
+

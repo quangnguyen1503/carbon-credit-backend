@@ -24,6 +24,13 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    public String getVerifierRoleIdByUsername(String id){
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("User not found with ID: " + id));
+        return user.getVerifierRoleId();
+    }
+
+    @Override
     public User updateProfile(UserDTO dto, String id) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("User not found"));
@@ -38,6 +45,8 @@ public class UserServiceImpl implements UserService {
 
         return userRepository.save(user);
     }
+
+
 
     @Override
     public User setRole(String id, UserDTO req) {

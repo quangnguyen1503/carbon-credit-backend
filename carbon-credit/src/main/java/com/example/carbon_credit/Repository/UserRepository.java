@@ -9,4 +9,6 @@ public interface UserRepository extends JpaRepository<User, String> {
     Optional<User> findById(String id);
 
     Optional<User> findByName(String name);  // Sửa từ findByname → findByName
+
+
 }

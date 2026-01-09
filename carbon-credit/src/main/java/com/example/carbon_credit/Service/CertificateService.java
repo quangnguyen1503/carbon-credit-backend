@@ -29,6 +29,8 @@ public class CertificateService {
         Certificate certificate = new Certificate();
         certificate.setId(UUID.randomUUID().toString());
         certificate.setUserId(userId);
+        certificate.setOnchainTxHash(requestDTO.getOnchainTxHash());
+        certificate.setNftTokenId(requestDTO.getNftTokenId());
         certificate.setReason(requestDTO.getReason());
         certificate.setStatus("PENDDING");
         certificate.setCreatedAt(LocalDateTime.now());
@@ -118,8 +120,6 @@ public class CertificateService {
 
     }
 
-
-    // Các method khác giữ nguyên (approve và confirm OK, vì chúng dùng findById đúng cho update)
     @Transactional
     public Certificate approveCertificate(String CertificateId, String adminId) {
         Certificate request = certificateRepository.findById(CertificateId)

@@ -6,6 +6,8 @@ import java.util.List;
 
 @Data
 public class RetireRequestDTO {
+    private String onchainTxHash;
+    private String nftTokenId;
     private String reason;
     private List<RetireRecordDTO> records;
 

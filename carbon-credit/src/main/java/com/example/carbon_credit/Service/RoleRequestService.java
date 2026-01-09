@@ -48,13 +48,25 @@ public class RoleRequestService {
             throw new RuntimeException("You already have a pending role request.");
         }
 
+        // ✅ Validate verifier logic
+        if (UserRole.VERIFIER.equals(dto.getRequestedRole())) {
+            if (dto.getVerifierRoleId() == null) {
+                throw new RuntimeException("Verifier must select an organization");
+            }
+        } else {
+            if (dto.getVerifierRoleId() != null) {
+                throw new RuntimeException("Only verifier can select organization");
+            }
+        }
+
         String token = UUID.randomUUID().toString();
 
         RoleRequest req = new RoleRequest();
         req.setUserId(userId);
         req.setRequestedRole(dto.getRequestedRole());
+        req.setVerifierRoleId(dto.getVerifierRoleId());
         req.setReason(dto.getReason());
-        req.setStatus(RoleRequestStatus.PENDING);  // Dùng enum nếu có
+        req.setStatus(RoleRequestStatus.PENDING);
         req.setEmailToken(token);
         req.setTokenExpiredAt(LocalDateTime.now().plusMinutes(15));
 
@@ -95,14 +107,20 @@ public class RoleRequestService {
         if(req.getRequestedRole().equals(RoleRequestStatus.CONFIRMED)){
             throw new RuntimeException("Request must be confirmed before approve.");
         }
+
+        User user = userRepository.findById(req.getUserId())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        user.setRoleId(req.getRequestedRole());
+
+
+        if (UserRole.VERIFIER.equals(req.getRequestedRole())) {
+            user.setVerifierRoleId(req.getVerifierRoleId());
+        }
         req.setStatus(RoleRequestStatus.APPROVE);
 
-
-
-
-
-        User user = userRepository.findById(req.getUserId()).orElseThrow();
         user.setRoleId(req.getRequestedRole());
+
 
 
 
