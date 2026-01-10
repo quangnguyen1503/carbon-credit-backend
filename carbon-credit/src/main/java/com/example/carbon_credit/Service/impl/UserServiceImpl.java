@@ -10,6 +10,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor  // Xóa @CrossOrigin, không cần ở Service
 public class UserServiceImpl implements UserService {
@@ -23,11 +25,17 @@ public class UserServiceImpl implements UserService {
                 .orElseThrow(() -> new RuntimeException("User not found with ID: " + id));
     }
 
+
     @Override
     public String getVerifierRoleIdByUsername(String id){
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("User not found with ID: " + id));
         return user.getVerifierRoleId();
+    }
+
+    @Override
+    public List<User> getAllByRoleid(String roleId) {
+        return userRepository.findByRoleId(roleId);
     }
 
     @Override

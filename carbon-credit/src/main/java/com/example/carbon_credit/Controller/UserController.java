@@ -23,6 +23,11 @@ public class UserController {
         return ResponseEntity.ok(userService.getUserById(principal.getName()));
     }
 
+    @GetMapping("/all")
+    public ResponseEntity<?> getAllUser(@RequestParam String roleId){
+        return ResponseEntity.ok((userService.getAllByRoleid(roleId)));
+    }
+
     @PutMapping("/updateProfile")
     public ResponseEntity<?> updateProfile(@RequestBody UserDTO dto , Principal principal){
         return ResponseEntity.ok(userService.updateProfile(dto, principal.getName()));

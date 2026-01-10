@@ -2,6 +2,7 @@ package com.example.carbon_credit.Repository;
 
 import com.example.carbon_credit.DTO.ProjectResponse;
 import com.example.carbon_credit.Entity.Project;
+import com.example.carbon_credit.constants.ProjectStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -58,6 +59,10 @@ public interface ProjectRepository extends JpaRepository<Project, String> {
     List<Project> findByStatusAndVerifierRoleId(String status ,String verifierRoleId);
 
     Optional<Project> findById(String projectId);
+
+    List<Project> findByStatusIn(List<String> statuses);
+
+
 
 
 }

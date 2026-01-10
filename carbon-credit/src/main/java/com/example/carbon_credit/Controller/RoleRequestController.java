@@ -1,5 +1,6 @@
 package com.example.carbon_credit.Controller;
 
+import com.example.carbon_credit.DTO.AddRoleRequestDTO;
 import com.example.carbon_credit.DTO.RoleRequestDTO;
 import com.example.carbon_credit.Entity.RoleRequest;
 import com.example.carbon_credit.Service.MailService;
@@ -61,6 +62,16 @@ public class RoleRequestController {
         }
     }
 
+    @PutMapping("/add-role")
+    public ResponseEntity<?> addRole(@RequestBody AddRoleRequestDTO request){
+        try{
+            roleRequestService.addRoleDirectly(request.getUserId(), request.getRoleName());
+            return ResponseEntity.ok("Role approved and email sent.");
+        }catch (RuntimeException e){
+            return ResponseEntity.badRequest().body("Approve failed: " + e.getMessage());
+        }
+    }
+
     @PutMapping("/reject/{requestId}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> rejectRoleRequest(@PathVariable String requestId, @RequestParam(required = false) String reason) {
@@ -71,4 +82,5 @@ public class RoleRequestController {
             return ResponseEntity.badRequest().body("Reject failed: " + e.getMessage());
         }
     }
+
 }

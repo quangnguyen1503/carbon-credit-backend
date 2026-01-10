@@ -47,20 +47,36 @@ public class ProjectController {
     }
 
 
-    @GetMapping("/ProjectSubmited")
-    public List<Project> getAllProjectSubmit( Principal principal){
-        String userid = principal.getName();
-        String verifierRoleId = userService.getVerifierRoleIdByUsername(userid);
-        return projectService.getProjectByVerify(ProjectStatus.SUBMITTED, verifierRoleId );
+    @GetMapping("/verifier-project")
+    public List<Project> getProjectsByStatus(
+            @RequestParam String status,
+            Principal principal
+    ) {
+        String userId = principal.getName();
+        String verifierRoleId = userService.getVerifierRoleIdByUsername(userId);
+
+        return projectService.getProjectByVerify(status, verifierRoleId);
     }
+
     @GetMapping("/MyProject")
     public List<ProjectResponse> getMyProject( Principal principal){
         return projectService.getMyProject(principal.getName());
     }
     @GetMapping("/ProjectVerified")
     public List<Project> getAllProjectApproved(){
-        return projectService.getAllProjectSubmited(ProjectStatus.VERIFIED);
+        return projectService.getAllProjectSubmited(ProjectStatus.VERIFIED );
     }
+
+    @GetMapping("/processed-project")
+    public List<Project> getProcessedProject() {
+        return projectService.getProjectsByStatuses(
+                List.of(
+                        ProjectStatus.APPROVED,
+                        ProjectStatus.REJECTED_BY_GOV
+                )
+        );
+    }
+
 
     @PostMapping("/{id}/verify")
     public ResponseEntity<?> verifyProject(

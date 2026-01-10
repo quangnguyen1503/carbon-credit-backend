@@ -1,21 +1,43 @@
 package com.example.carbon_credit.Entity;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "wallet_credits")
+@Table(name = "wallets_credits")
 @Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class WalletCredit {
     @Id
     private String id;
-    private String walletId;
-    private String creditId;
-    private Integer balance;
-    private LocalDateTime updateAt;
-    private LocalDateTime creatAt;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "wallet_id", nullable = false)
+    private Wallet wallet;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "credit_id", nullable = false)
+    private CarbonCredit carbonCredit;
+
+    @Column(name = "available_balance", nullable = false)
+    private Long availableBalance; // Số dư Credit có thể đem bán
+
+    @Column(name = "locked_balance", nullable = false)
+    private Long lockedBalance; // Số dư Credit đang treo ở các lệnh Sell chưa khớp
+
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+
+    @Column(name = "created_at")
+    private LocalDateTime createdAt;
+
+    @Version
+    private Long version;
 }
