@@ -14,7 +14,8 @@ import java.util.List;
 public class WalletService {
     private final WalletCreditRepository walletCreditRepository;
     public List<MyCreditResponse> getMyCredits(String userId) {
-            return walletCreditRepository.findMyCredits(userId);
+
+        return walletCreditRepository.findMyCredits(userId);
         }
 
 }

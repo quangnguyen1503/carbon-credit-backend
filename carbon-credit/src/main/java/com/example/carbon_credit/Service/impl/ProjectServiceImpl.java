@@ -91,6 +91,12 @@ public class ProjectServiceImpl implements ProjectService {
         return projectRepository.findByStatus(status);
     }
 
+    public List<Project> getProjectsByStatuses(List<String> statuses) {
+        return projectRepository.findByStatusIn(statuses);
+    }
+
+
+
     @Override
     public List<Project> getProjectByVerify(String status, String verifierRoleId) {
         return projectRepository.findByStatusAndVerifierRoleId(status, verifierRoleId);

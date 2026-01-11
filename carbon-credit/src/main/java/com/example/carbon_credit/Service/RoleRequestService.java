@@ -1,8 +1,10 @@
 package com.example.carbon_credit.Service;
 
 import com.example.carbon_credit.DTO.RoleRequestDTO;
+import com.example.carbon_credit.Entity.Role;
 import com.example.carbon_credit.Entity.RoleRequest;
 import com.example.carbon_credit.Entity.User;
+import com.example.carbon_credit.Repository.RoleRepository;
 import com.example.carbon_credit.Repository.RoleRequestRepository;
 import com.example.carbon_credit.Repository.UserRepository;
 import com.example.carbon_credit.constants.RoleRequestStatus;  // Giả sử enum: PENDING, CONFIRMED
@@ -24,6 +26,9 @@ public class RoleRequestService {
 
     @Autowired
     private RoleRequestRepository roleRequestRepository;
+
+    @Autowired
+    private RoleRepository roleRepository;
 
     @Autowired
     private MailService mailService;
@@ -147,6 +152,21 @@ public class RoleRequestService {
         User user = userRepository.findById(req.getUserId()).orElseThrow();
         mailService.sendRejectRole(user.getEmail(), req.getRequestedRole());
     }
+
+    @Transactional
+    public void addRoleDirectly(String userid, String roleName) {
+        User user = userRepository.findById(userid)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        Role role = roleRepository.findByName(roleName)
+                .orElseThrow(() -> new RuntimeException("Role not found"));
+
+        user.setRoleId(roleName);
+        // Gửi email reject
+        mailService.sendRejectRole(user.getEmail(), roleName);
+
+    }
+
 
 
 }

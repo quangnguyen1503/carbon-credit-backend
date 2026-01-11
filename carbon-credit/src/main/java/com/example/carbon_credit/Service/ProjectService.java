@@ -4,6 +4,7 @@ import com.example.carbon_credit.DTO.ApprovedRequestDTO;
 import com.example.carbon_credit.DTO.ProjectResponse;
 import com.example.carbon_credit.DTO.VerifyRequestDTO;
 import com.example.carbon_credit.Entity.Project;
+import com.example.carbon_credit.constants.ProjectStatus;
 
 import java.util.List;
 import java.util.Optional;
@@ -24,6 +25,8 @@ public interface ProjectService {
     List<Project>  getProjectByVerify(String status, String verifierRoleId);
 
     Optional<Project> getProjectDetail(String id );
+
+    List<Project> getProjectsByStatuses(List<String> statuses);
 
 
 
