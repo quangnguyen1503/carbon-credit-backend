@@ -6,25 +6,24 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.math.BigInteger;
 import java.util.List;
+import java.util.Optional;
 
 public interface WalletCreditRepository
         extends JpaRepository<WalletCredit, String> {
 
-    @Query("""
-        SELECT new com.example.carbon_credit.DTO.MyCreditResponse
-                                                           (
-            c.id,
-            c.tokenId,
-            c.projectId,
-            wc.balance
-        )
-        FROM WalletCredit wc
-        JOIN Wallet w ON wc.walletId = w.id
-        JOIN CarbonCredit c ON wc.creditId = c.id
-        WHERE w.userId = :userId
-          AND wc.balance > 0
-    """)
-    List<MyCreditResponse> findMyCredits(@Param("userId") String userId);
+    // Tìm số dư Credit dựa trên ví và Token ID (ERC1155)
+    // Sử dụng Query để join bảng carbon_credits
+    @Query("SELECT wc FROM WalletCredit wc " +
+            "WHERE wc.wallet.address = :address " +
+            "AND wc.carbonCredit.tokenId = :tokenId")
+    Optional<WalletCredit> findByWalletAddressAndTokenId(
+            @Param("address") String address,
+            @Param("tokenId") BigInteger tokenId
+    );
+
+    // Tìm tất cả các loại credit trong một ví
+    // List<WalletCredit> findByWalletId(String walletId);
 }
 

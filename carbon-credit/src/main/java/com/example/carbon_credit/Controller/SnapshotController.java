@@ -20,20 +20,23 @@ public class SnapshotController {
     private WsService wsService;
 
 
-    @MessageMapping("/snapshot")  // Catch message từ FE (STOMP destination /app/snapshot)
-    public void requestSnapshot() {  // Không return, chỉ broadcast
-        System.out.println("Received /app/snapshot request from FE");  // ← THÊM: Debug log confirm handler hit
+    @MessageMapping("/snapshot")
+    public void requestSnapshot() {
 
-        Map<String, Object> snapshotMap = orderService.getSnapshot();  // Get Map từ service
+        Map<String, Object> snapshotMap = orderService.getSnapshot();
 
-        // ← FIX: Safe cast với generic (tránh raw List warning)
-        @SuppressWarnings("unchecked")
-        List<Order> buys = (List<Order>) ((List<?>) snapshotMap.get("orders")).get(0);  // Extract buys
-        @SuppressWarnings("unchecked")
-        List<Order> sells = (List<Order>) ((List<?>) snapshotMap.get("orders")).get(1);  // Extract sells
+        // Ép kiểu an toàn
+        Object ordersObj = snapshotMap.get("orders");
+        if (ordersObj instanceof List) {
+            List<?> rawList = (List<?>) ordersObj;
+            if (rawList.size() >= 2) {
+                @SuppressWarnings("unchecked")
+                List<Order> buys = (List<Order>) rawList.get(0);
+                @SuppressWarnings("unchecked")
+                List<Order> sells = (List<Order>) rawList.get(1);
 
-        wsService.broadcastSnapshot(buys, sells);  // ← FIX: Call trực tiếp từ WsService (không qua getWsService)
-
-        System.out.println("Snapshot requested and broadcasted: " + buys.size() + " buys, " + sells.size() + " sells");  // Debug log
+                wsService.broadcastSnapshot(buys, sells); // Hết lỗi
+            }
+        }
     }
 }
