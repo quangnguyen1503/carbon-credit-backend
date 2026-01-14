@@ -129,11 +129,27 @@ public class OrderBook {
                 // Calculate match amount
                 int matchAmount = Math.min(remaining, oppRemaining);
 
+                String buyerId, sellerId, buyOrderId, sellOrderId;
+
+                if (isBuy) {
+                    // Incoming (New) is BUY -> Buyer = New, Seller = Opp
+                    buyerId = newOrder.getUserId();
+                    sellerId = oppOrder.getUserId();
+                    buyOrderId = newOrder.getOrderId();
+                    sellOrderId = oppOrder.getOrderId();
+                } else {
+                    // Incoming (New) is SELL -> Buyer = Opp, Seller = New
+                    buyerId = oppOrder.getUserId();
+                    sellerId = newOrder.getUserId();
+                    buyOrderId = oppOrder.getOrderId();
+                    sellOrderId = newOrder.getOrderId();
+                }
+
                 // Create trade
                 TradeEventDTO trade = TradeEventDTO.builder()
                         .tradeId(UUID.randomUUID().toString())
-                        .buyOrderId(isBuy ? newOrder.getOrderId() : oppOrder.getOrderId())
-                        .sellOrderId(isBuy ? oppOrder.getOrderId() : newOrder.getOrderId())
+                        .buyOrderId(buyOrderId)
+                        .sellOrderId(sellOrderId)
                         .creditId(creditId)
                         .amount(matchAmount)
                         .price(bestOppositePrice)  // Trade at maker price

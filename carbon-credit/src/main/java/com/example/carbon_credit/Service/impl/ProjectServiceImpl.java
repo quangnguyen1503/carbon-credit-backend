@@ -2,11 +2,13 @@ package com.example.carbon_credit.Service.impl;
 
 import com.example.carbon_credit.DTO.ApprovedRequestDTO;
 import com.example.carbon_credit.DTO.ProjectResponse;
+import com.example.carbon_credit.DTO.ProjectWithCreditDTO;
 import com.example.carbon_credit.DTO.VerifyRequestDTO;
 import com.example.carbon_credit.Entity.CarbonCredit;
 import com.example.carbon_credit.Entity.Project;
 import com.example.carbon_credit.Entity.User;
 import com.example.carbon_credit.Repository.CarbonCreditRepository;
+import com.example.carbon_credit.Repository.OrderRepository;
 import com.example.carbon_credit.Repository.ProjectRepository;
 import com.example.carbon_credit.Repository.UserRepository;
 import com.example.carbon_credit.Service.MailService;
@@ -19,6 +21,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 public class ProjectServiceImpl implements ProjectService {
@@ -32,6 +35,9 @@ public class ProjectServiceImpl implements ProjectService {
 
     @Autowired
     CarbonCreditRepository carbonCreditRepository;
+
+    @Autowired
+    OrderRepository orderRepository;
 
 
     @Autowired
@@ -169,9 +175,6 @@ public class ProjectServiceImpl implements ProjectService {
                     .build();
             carbonCreditRepository.save(carbonCredit);
             mailService.sendApproveProject(ownerEmail, project.getName());
-
-
-
         }
         else{
             project.setStatus(ProjectStatus.REJECTED_BY_GOV);
@@ -183,7 +186,72 @@ public class ProjectServiceImpl implements ProjectService {
     }
 
 
+    public List<ProjectWithCreditDTO> getAllProjectsWithCredits() {
+        List<Project> projects = projectRepository.findAll();
 
+        return projects.stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+    }
+
+    public List<ProjectWithCreditDTO> getProjectsByOwner(String userId) {
+        List<Project> projects = projectRepository.findByOwnerId(userId);
+
+        return projects.stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+    }
+
+    public ProjectWithCreditDTO getProjectWithCredit(String projectId) {
+        Project project = projectRepository.findById(projectId).orElse(null);
+        if (project == null) return null;
+
+        return convertToDTO(project);
+    }
+
+    public Project getProjectById(String projectId) {
+        return projectRepository.findById(projectId).orElse(null);
+    }
+
+    public CarbonCredit getCarbonCreditByProjectId(String projectId) {
+        return carbonCreditRepository.findByProjectId(projectId).orElse(null);
+    }
+
+    private ProjectWithCreditDTO convertToDTO(Project project) {
+        ProjectWithCreditDTO dto = ProjectWithCreditDTO.builder()
+                .id(project.getId())
+                .name(project.getName())
+                .vintage(project.getVintage())
+                .ownerId(project.getOwnerId())
+                .type(project.getType())
+                .location(project.getLocation())
+                .description(project.getDescription())
+                .ipfsHash(project.getIpfsHash())
+                .status(project.getStatus())
+                .createdAt(project.getCreatedAt())
+                .build();
+
+        // Get carbon credit info if exists
+        CarbonCredit credit = carbonCreditRepository.findByProjectId(project.getId()).orElse(null);
+        if (credit != null) {
+            dto.setTokenId(credit.getTokenId());
+            dto.setTotalAmount(credit.getTotalAmount());
+            dto.setIssueAmount(credit.getIssueAmount());
+            dto.setRetiredAmount(credit.getRetiredAmount());
+            dto.setAvailableAmount(credit.getIssueAmount() - credit.getRetiredAmount());
+
+            // Check if has active orders (is listed)
+            String creditId = String.valueOf(credit.getTokenId());
+            boolean hasOrders = !orderRepository.findByCreditIdAndStatus(creditId, "OPEN").isEmpty();
+            dto.setIsListed(hasOrders);
+            dto.setHasOrderBook(hasOrders);
+        } else {
+            dto.setIsListed(false);
+            dto.setHasOrderBook(false);
+        }
+
+        return dto;
+    }
 
 
 }

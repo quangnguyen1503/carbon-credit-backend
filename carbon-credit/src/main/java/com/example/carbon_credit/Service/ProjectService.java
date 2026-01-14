@@ -2,7 +2,9 @@ package com.example.carbon_credit.Service;
 
 import com.example.carbon_credit.DTO.ApprovedRequestDTO;
 import com.example.carbon_credit.DTO.ProjectResponse;
+import com.example.carbon_credit.DTO.ProjectWithCreditDTO;
 import com.example.carbon_credit.DTO.VerifyRequestDTO;
+import com.example.carbon_credit.Entity.CarbonCredit;
 import com.example.carbon_credit.Entity.Project;
 import com.example.carbon_credit.constants.ProjectStatus;
 
@@ -28,7 +30,10 @@ public interface ProjectService {
 
     List<Project> getProjectsByStatuses(List<String> statuses);
 
+    ProjectWithCreditDTO getProjectWithCredit(String projectId);
+    Project getProjectById(String projectId);
 
+    CarbonCredit getCarbonCreditByProjectId(String projectId);
 
 
 

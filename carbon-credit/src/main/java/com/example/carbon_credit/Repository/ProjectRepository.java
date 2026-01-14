@@ -63,7 +63,6 @@ public interface ProjectRepository extends JpaRepository<Project, String> {
     List<Project> findByStatusIn(List<String> statuses);
 
 
-
-
+    List<Project> findByOwnerId(String userId);
 }
 

@@ -30,7 +30,7 @@ public class Order {
     @Column(name = "order_condition", nullable = false)
     private String orderCondition;
 
-    @Column(name = "price", nullable = false, precision = 10, scale = 0)
+    @Column(name = "price", nullable = false, precision = 10, scale = 9)
     private BigDecimal price;  // decimal(10,0)
 
     @Column(name = "amount", nullable = false)

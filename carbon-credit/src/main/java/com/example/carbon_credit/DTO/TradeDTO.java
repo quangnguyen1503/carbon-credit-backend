@@ -15,7 +15,7 @@ public class TradeDTO {
     private String buyer;
     private String seller;
     private BigInteger creditTokenId;
-    private BigInteger amount;
+    private BigInteger creditAmount;
     private BigInteger totalValue;
 
 }

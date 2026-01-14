@@ -9,7 +9,6 @@ import org.web3j.abi.FunctionEncoder;
 import org.web3j.abi.FunctionReturnDecoder;
 import org.web3j.abi.TypeReference;
 import org.web3j.abi.datatypes.*;
-import org.web3j.abi.datatypes.generated.Bytes32;
 import org.web3j.abi.datatypes.generated.Uint256;
 import org.web3j.crypto.Credentials;
 import org.web3j.protocol.Web3j;
@@ -24,10 +23,10 @@ import org.web3j.tx.response.PollingTransactionReceiptProcessor;
 import org.web3j.tx.response.TransactionReceiptProcessor;
 
 import java.math.BigInteger;
-import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -49,18 +48,18 @@ public class ContractService {
 
     public BigInteger getNativeBalance(String userAddress) throws Exception {
         Function function = new Function(
-            "getNativeBalance",
-            Arrays.asList(new Address(userAddress)),
-            Arrays.asList(new TypeReference<Uint256>() {})
-        );
+                "getNativeBalance",
+                Arrays.asList(new Address(userAddress)),
+                Arrays.asList(new TypeReference<Uint256>() {
+                }));
 
         String encodedFunction = FunctionEncoder.encode(function);
 
         EthCall response = web3j.ethCall(
-            Transaction.createEthCallTransaction(
-                userAddress,
-                exchangeContractAddress, encodedFunction),
-            DefaultBlockParameterName.LATEST).send();
+                Transaction.createEthCallTransaction(
+                        userAddress,
+                        exchangeContractAddress, encodedFunction),
+                DefaultBlockParameterName.LATEST).send();
 
         if (response.hasError()) {
             throw new RuntimeException("Error calling getNativeBalance: " + response.getError().getMessage());
@@ -74,8 +73,7 @@ public class ContractService {
         try {
             List<Type> results = FunctionReturnDecoder.decode(
                     value,
-                    function.getOutputParameters()
-            );
+                    function.getOutputParameters());
 
             if (results.isEmpty()) {
                 return BigInteger.ZERO;
@@ -91,19 +89,19 @@ public class ContractService {
 
     public BigInteger getCreditBalance(String userAddress, BigInteger creditTokenId) throws Exception {
         Function function = new Function(
-            "getCreditBalance",
-            Arrays.asList(new Uint256(creditTokenId), new Address(userAddress)),
-            Arrays.asList(new TypeReference<Uint256>() {})
-        );
+                "getCreditBalance",
+                Arrays.asList(new Uint256(creditTokenId), new Address(userAddress)),
+                Arrays.asList(new TypeReference<Uint256>() {
+                }));
 
         String encodedFunction = FunctionEncoder.encode(function);
 
         EthCall response = web3j.ethCall(
-            Transaction.createEthCallTransaction(
-                userAddress,
-                exchangeContractAddress, encodedFunction),
-            DefaultBlockParameterName.LATEST).send();
-        
+                Transaction.createEthCallTransaction(
+                        userAddress,
+                        exchangeContractAddress, encodedFunction),
+                DefaultBlockParameterName.LATEST).send();
+
         if (response.hasError()) {
             throw new RuntimeException("Error calling getCreditBalance: " + response.getError().getMessage());
         }
@@ -116,8 +114,7 @@ public class ContractService {
         try {
             List<Type> results = FunctionReturnDecoder.decode(
                     value,
-                    function.getOutputParameters()
-            );
+                    function.getOutputParameters());
 
             if (results.isEmpty()) {
                 return BigInteger.ZERO;
@@ -132,51 +129,45 @@ public class ContractService {
     }
 
     public TransactionReceipt lockBalance(
-        String orderId,
-        String userAddress,
-        BigInteger tokenId,
-        BigInteger amount,
-        boolean isCreditToken
-    ) throws Exception {
+            String orderId,
+            String userAddress,
+            BigInteger tokenId,
+            BigInteger amount,
+            boolean isCreditToken) throws Exception {
         Credentials credentials = Credentials.create(settlementOperatorPrivateKey);
 
         TransactionReceiptProcessor receiptProcessor = new PollingTransactionReceiptProcessor(
-            web3j,
-            3000,  // Poll every 3 seconds
-            40     // Max 40 attempts = 2 minutes
+                web3j,
+                3000, // Poll every 3 seconds
+                40 // Max 40 attempts = 2 minutes
         );
 
         TransactionManager txManager = new RawTransactionManager(web3j, credentials, chainId, receiptProcessor);
 
-        byte[] orderIdBytes = convertToBytes32(orderId);
-
         Function function = new Function(
-            "lockBalance",
-            Arrays.asList(
-                new Bytes32(orderIdBytes),
-                new Address(userAddress),
-                new Uint256(tokenId),
-                new Uint256(amount),
-                new Bool(isCreditToken)
-            ),
-            Arrays.asList()
-        );
+                "lockBalance",
+                Arrays.asList(
+                        new Utf8String(orderId),
+                        new Address(userAddress),
+                        new Uint256(tokenId),
+                        new Uint256(amount),
+                        new Bool(isCreditToken)),
+                Arrays.asList());
 
         String encodedFunction = FunctionEncoder.encode(function);
         EthSendTransaction ethSendTransaction = txManager.sendTransaction(
-            GAS_PRICE,
-            GAS_LIMIT,
-            exchangeContractAddress,
-            encodedFunction,
-            BigInteger.ZERO
-        );
+                GAS_PRICE,
+                GAS_LIMIT,
+                exchangeContractAddress,
+                encodedFunction,
+                BigInteger.ZERO);
 
         if (ethSendTransaction.hasError()) {
-            throw new RuntimeException("Error sending lockBalance transaction: " + ethSendTransaction.getError().getMessage());
+            throw new RuntimeException(
+                    "Error sending lockBalance transaction: " + ethSendTransaction.getError().getMessage());
         }
 
         String txHash = ethSendTransaction.getTransactionHash();
-        System.out.printf("Transaction Hash:", txHash);
         TransactionReceipt receipt = waitForReceipt(txHash);
 
         if (receipt.isStatusOK()) {
@@ -194,39 +185,33 @@ public class ContractService {
         Credentials credentials = Credentials.create(settlementOperatorPrivateKey);
 
         TransactionReceiptProcessor receiptProcessor = new PollingTransactionReceiptProcessor(
-            web3j,
-            3000,  // Poll every 3 seconds
-            40     // Max 40 attempts = 2 minutes
+                web3j,
+                3000, // Poll every 3 seconds
+                40 // Max 40 attempts = 2 minutes
         );
 
         TransactionManager txManager = new RawTransactionManager(web3j, credentials, chainId, receiptProcessor);
 
-        // Convert orderId to bytes32
-        byte[] orderIdBytes = convertToBytes32(orderId);
-
         Function function = new Function(
-            "unlockBalance",
-            Arrays.asList(new Bytes32(orderIdBytes)),
-            Arrays.asList()
-        );
+                "unlockBalance",
+                Arrays.asList(new Utf8String(orderId)),
+                Arrays.asList());
 
         String encodedFunction = FunctionEncoder.encode(function);
         EthSendTransaction ethSendTransaction = txManager.sendTransaction(
-            GAS_PRICE,
-            GAS_LIMIT,
-            exchangeContractAddress,
-            encodedFunction,
-            BigInteger.ZERO
-        );
+                GAS_PRICE,
+                GAS_LIMIT,
+                exchangeContractAddress,
+                encodedFunction,
+                BigInteger.ZERO);
 
         if (ethSendTransaction.hasError()) {
-            throw new RuntimeException("Error sending unlockBalance transaction: " + ethSendTransaction.getError().getMessage());
+            throw new RuntimeException(
+                    "Error sending unlockBalance transaction: " + ethSendTransaction.getError().getMessage());
         }
 
         String txHash = ethSendTransaction.getTransactionHash();
-        // TransactionReceipt receipt = web3j.ethGetTransactionReceipt(txHash).send().getTransactionReceipt().orElseThrow(() ->
-        //     new RuntimeException("Transaction receipt not generated after unlocking balance")
-        // );
+
         TransactionReceipt receipt = waitForReceipt(txHash);
         log.info("✅ Balance unlocked successfully");
 
@@ -234,97 +219,80 @@ public class ContractService {
     }
 
     public TransactionReceipt processBatchSettlement(
-        BigInteger batchId,
-        List<TradeDTO> trades,
-        List<String> buyOrderIds,
-        List<String> sellOrderIds
-    ) throws Exception {
+            BigInteger batchId,
+            List<TradeDTO> trades,
+            List<String> buyOrderIds,
+            List<String> sellOrderIds) throws Exception {
         Credentials credentials = Credentials.create(settlementOperatorPrivateKey);
 
         TransactionReceiptProcessor receiptProcessor = new PollingTransactionReceiptProcessor(
-            web3j, 3000, 60  // 3 minutes for batch
-        );
+                web3j, 3000, 60);
         TransactionManager txManager = new RawTransactionManager(web3j, credentials, chainId, receiptProcessor);
 
-        List<DynamicStruct> tradeStructs = trades.stream()
-            .map(trade -> new DynamicStruct(
-                new Address(trade.getBuyer()),
-                new Address(trade.getSeller()),
-                new Uint256(trade.getCreditTokenId()),
-                new Uint256(trade.getAmount()),
-                new Uint256(trade.getTotalValue())
+        // Mapping TradeStruct
+        // Mapping TradeStruct
+        List<StaticStruct> tradeStructs = trades.stream()
+                .map(trade -> new StaticStruct(
+                        new Address(trade.getBuyer()),
+                        new Address(trade.getSeller()),
+                        new Uint256(trade.getCreditTokenId()),
+                        new Uint256(trade.getCreditAmount()),
+                        new Uint256(trade.getTotalValue())))
+                .collect(Collectors.toList());
 
-            )).toList();
-        
-        List<Bytes32> buyOrderIdTypes = buyOrderIds.stream()
-            .map(id -> new Bytes32(convertToBytes32(id)))
-            .toList();
+        // ✅ SỬA ĐỔI: List<Bytes32> thành List<Utf8String>
+        List<Utf8String> buyOrderIdTypes = buyOrderIds.stream()
+                .map(Utf8String::new)
+                .collect(Collectors.toList());
 
-        List<Bytes32> sellOrderIdTypes = sellOrderIds.stream()
-            .map(id -> new Bytes32(convertToBytes32(id)))
-            .toList();
-        
-        
+        List<Utf8String> sellOrderIdTypes = sellOrderIds.stream()
+                .map(Utf8String::new)
+                .collect(Collectors.toList());
+
         Function function = new Function(
-            "processBatchSettlement",
-            Arrays.asList(
-                new Uint256(batchId),
-                new DynamicArray<>(DynamicStruct.class, tradeStructs),
-                new DynamicArray<>(org.web3j.abi.datatypes.generated.Bytes32.class, buyOrderIdTypes),
-                new DynamicArray<>(org.web3j.abi.datatypes.generated.Bytes32.class, sellOrderIdTypes)
-            ),
-            Arrays.asList()
-        );
+                "processBatchSettlement",
+                Arrays.asList(
+                        new Uint256(batchId),
+                        new DynamicArray<StaticStruct>(StaticStruct.class, tradeStructs),
+                        new DynamicArray<>(Utf8String.class, buyOrderIdTypes),
+                        new DynamicArray<>(Utf8String.class, sellOrderIdTypes)),
+                Arrays.asList());
 
         String encodedFunction = FunctionEncoder.encode(function);
-        BigInteger batchGasLimit = GAS_LIMIT.multiply(BigInteger.valueOf(Math.max(trades.size(), 1)));
+
+        // Tính toán Gas Limit động cho Batch (vì String tốn nhiều gas hơn)
+        BigInteger baseBatchGas = BigInteger.valueOf(500_000);
+        BigInteger gasPerTrade = BigInteger.valueOf(150_000); // Tăng estimate
+        BigInteger batchGasLimit = baseBatchGas.add(gasPerTrade.multiply(BigInteger.valueOf(trades.size())));
 
         EthSendTransaction ethSendTransaction = txManager.sendTransaction(
-            GAS_PRICE,
-            batchGasLimit,
-            exchangeContractAddress,
-            encodedFunction,
-            BigInteger.ZERO
-        );
+                GAS_PRICE,
+                batchGasLimit,
+                exchangeContractAddress,
+                encodedFunction,
+                BigInteger.ZERO);
 
         if (ethSendTransaction.hasError()) {
-            throw new RuntimeException("Error sending processBatchSettlement transaction: " + ethSendTransaction.getError().getMessage());
+            throw new RuntimeException(
+                    "Error sending processBatchSettlement transaction: " + ethSendTransaction.getError().getMessage());
         }
 
-        String txHash = ethSendTransaction.getTransactionHash();
-        // TransactionReceipt receipt = web3j.ethGetTransactionReceipt(txHash).send().getTransactionReceipt()
-        //     .orElseThrow(() -> new RuntimeException("Transaction receipt not generated after processing batch settlement")
-        // );
-        TransactionReceipt receipt = waitForReceipt(txHash);
-        log.info("✅ Batch {} settled successfully", batchId);
-
-        return receipt;
-    }
-    
-    private byte[] convertToBytes32(String input) {
-        byte[] result = new byte[32];
-        byte[] inputBytes = input.getBytes(StandardCharsets.UTF_8);
-        
-        // Copy input bytes, truncate if > 32 bytes, pad with zeros if < 32 bytes
-        int length = Math.min(inputBytes.length, 32);
-        System.arraycopy(inputBytes, 0, result, 0, length);
-        
-        return result;
+        return waitForReceipt(ethSendTransaction.getTransactionHash());
     }
 
     private TransactionReceipt waitForReceipt(String txHash) throws Exception {
         int attempts = 0;
-        int maxAttempts = 60;  // 3 minutes
-        int sleepTime = 3000;  // 3 seconds
+        int maxAttempts = 60; // 3 minutes
+        int sleepTime = 3000; // 3 seconds
 
         log.info("⏳ Waiting for confirmation...");
 
         while (attempts < maxAttempts) {
             try {
                 Optional<TransactionReceipt> receiptOptional = web3j
-                    .ethGetTransactionReceipt(txHash)
-                    .send()
-                    .getTransactionReceipt();
+                        .ethGetTransactionReceipt(txHash)
+                        .send()
+                        .getTransactionReceipt();
 
                 if (receiptOptional.isPresent()) {
                     log.info("✅ Confirmed after {} seconds", (attempts * sleepTime) / 1000);
@@ -346,12 +314,49 @@ public class ContractService {
 
         // Timeout
         String error = String.format(
-            "Transaction not mined after %d seconds. " +
-            "Check: https://amoy.polygonscan.com/tx/%s",
-            (maxAttempts * sleepTime) / 1000,
-            txHash
-        );
+                "Transaction not mined after %d seconds. " +
+                        "Check: https://amoy.polygonscan.com/tx/%s",
+                (maxAttempts * sleepTime) / 1000,
+                txHash);
         log.error("❌ {}", error);
         throw new RuntimeException(error);
+    }
+
+    // Hàm gọi view lockedBalances trên Smart Contract
+    public String getLockedBalanceOwner(String orderId) {
+        try {
+            Function function = new Function(
+                    "lockedBalances",
+                    Arrays.asList(new Utf8String(orderId)),
+                    Arrays.asList(
+                            new TypeReference<Address>() {
+                            }, // user
+                            new TypeReference<Bool>() {
+                            }, // isCreditToken
+                            new TypeReference<Uint256>() {
+                            }, // tokenId
+                            new TypeReference<Uint256>() {
+                            }, // amount
+                            new TypeReference<Bool>() {
+                            } // isActive
+                    ));
+
+            String encodedFunction = FunctionEncoder.encode(function);
+            EthCall response = web3j.ethCall(
+                    Transaction.createEthCallTransaction(null, exchangeContractAddress, encodedFunction),
+                    DefaultBlockParameterName.LATEST).send();
+
+            List<Type> result = FunctionReturnDecoder.decode(response.getValue(), function.getOutputParameters());
+
+            if (result.isEmpty())
+                return "0x0000000000000000000000000000000000000000";
+
+            // Trả về địa chỉ User đang sở hữu Lock này
+            return result.get(0).getValue().toString().toLowerCase();
+
+        } catch (Exception e) {
+            log.error("Failed to fetch locked balance for {}: {}", orderId, e.getMessage());
+            return "ERROR";
+        }
     }
 }

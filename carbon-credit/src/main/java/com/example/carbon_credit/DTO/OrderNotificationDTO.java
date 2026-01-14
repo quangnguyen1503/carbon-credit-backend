@@ -1,17 +1,18 @@
 package com.example.carbon_credit.DTO;
 
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.math.BigInteger;
-
 @Data
+@Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class MyCreditResponse {
+public class OrderNotificationDTO {
+    private String type;
+    private String orderId;
     private String creditId;
-    private Long tokenId;
-    private String projectId;
-    private BigInteger availableBalance;
+    private String message;
+    private long timestamp;
 }

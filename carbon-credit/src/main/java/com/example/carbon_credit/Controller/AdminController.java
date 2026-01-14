@@ -23,8 +23,6 @@ public class AdminController {
             @Valid @RequestBody UserDTO req,  // Simplify: chỉ cần roleId
             Principal principal
     ) {
-        // Check quyền: giả sử principal có user, check role (bạn cần implement getCurrentUser từ principal)
-        // Ví dụ: User currentUser = getCurrentUser(principal); if (!currentUser.getRoleId().equals(UserRole.GOVERNMENT)) throw new AccessDeniedException();
 
         User result = userService.setRole(id, req);  // Truyền roleId trực tiếp
         return ResponseEntity.ok(result);

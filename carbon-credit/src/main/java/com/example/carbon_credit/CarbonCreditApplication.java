@@ -2,8 +2,10 @@ package com.example.carbon_credit;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication
+@EnableScheduling
 public class CarbonCreditApplication {
 	public static void main(String[] args) {
 		SpringApplication.run(CarbonCreditApplication.class, args);

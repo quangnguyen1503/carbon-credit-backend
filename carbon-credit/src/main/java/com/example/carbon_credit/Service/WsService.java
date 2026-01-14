@@ -1,5 +1,6 @@
 package com.example.carbon_credit.Service;
 
+import com.example.carbon_credit.DTO.OrderNotificationDTO;
 import com.example.carbon_credit.DTO.TradeEventDTO;
 import com.example.carbon_credit.DTO.OrderBookUpdateDTO;
 import lombok.RequiredArgsConstructor;
@@ -22,55 +23,131 @@ public class WsService {
      * Broadcast trade event khi có giao dịch mới
      */
     public void broadcastTrade(TradeEventDTO trade) {
-        // Gửi đến topic specific cho credit
-        messagingTemplate.convertAndSend(
-            "/topic/trades/" + trade.getCreditId(),
-            trade
-        );
-        
-        // Gửi đến topic chung (tất cả credits)
-        messagingTemplate.convertAndSend("/topic/trades/all", trade);
-        
-        log.info("📡 Broadcasted trade {} via WebSocket", trade.getTradeId());
+        try {
+            messagingTemplate.convertAndSend(
+                    "/topic/trades/" + trade.getCreditId(),
+                    trade
+            );
+
+            messagingTemplate.convertAndSend("/topic/trades/all", trade);
+
+            log.info("📡 Broadcasted trade {} via WebSocket", trade.getTradeId());
+        } catch (Exception e) {
+            log.error("❌ Failed to broadcast trade: {}", e.getMessage());
+        }
     }
 
     /**
      * Broadcast orderbook update khi có thay đổi
      */
     public void broadcastOrderBookUpdate(String creditId, Map<String, Object> snapshot) {
-        OrderBookUpdateDTO update = OrderBookUpdateDTO.builder()
-            .creditId(creditId)
-            .bestBid((BigDecimal) snapshot.get("bestBid"))
-            .bestAsk((BigDecimal) snapshot.get("bestAsk"))
-            .bidVolume((Integer) snapshot.get("bestBidVolume"))
-            .askVolume((Integer) snapshot.get("bestAskVolume"))
-            .timestamp(LocalDateTime.now())
-            .build();
-        
-        messagingTemplate.convertAndSend(
-            "/topic/orderbook/" + creditId,
-            update
-        );
-        
-        log.debug("📊 Broadcasted orderbook update for {}", creditId);
+        try {
+            // --- SỬA LỖI TẠI ĐÂY: Dùng hàm helper thay vì ép kiểu trực tiếp ---
+            OrderBookUpdateDTO update = OrderBookUpdateDTO.builder()
+                    .creditId(creditId)
+                    .bestBid(getBigDecimal(snapshot.get("bestBid"))) // ✅ Safe conversion
+                    .bestAsk(getBigDecimal(snapshot.get("bestAsk"))) // ✅ Safe conversion
+                    .bidVolume(getInteger(snapshot.get("bestBidVolume"))) // ✅ Safe conversion
+                    .askVolume(getInteger(snapshot.get("bestAskVolume"))) // ✅ Safe conversion
+                    .timestamp(LocalDateTime.now())
+                    .build();
+
+            messagingTemplate.convertAndSend(
+                    "/topic/orderbook/" + creditId,
+                    update
+            );
+
+            log.debug("📊 Broadcasted orderbook update for {}", creditId);
+        } catch (Exception e) {
+            log.error("❌ Failed to broadcast orderbook update for {}: {}", creditId, e.getMessage(), e);
+        }
     }
 
     /**
      * Broadcast price update (last traded price)
      */
     public void broadcastPriceUpdate(String creditId, BigDecimal price, int volume) {
-        Map<String, Object> priceUpdate = Map.of(
-            "creditId", creditId,
-            "price", price,
-            "volume", volume,
-            "timestamp", LocalDateTime.now()
-        );
-        
-        messagingTemplate.convertAndSend(
-            "/topic/price/" + creditId,
-            priceUpdate
-        );
-        
-        log.debug("💲 Broadcasted price update: {} @ {}", creditId, price);
+        try {
+            Map<String, Object> priceUpdate = Map.of(
+                    "creditId", creditId,
+                    "price", price,
+                    "volume", volume,
+                    "timestamp", LocalDateTime.now()
+            );
+
+            messagingTemplate.convertAndSend(
+                    "/topic/price/" + creditId,
+                    priceUpdate
+            );
+
+            log.debug("💲 Broadcasted price update: {} @ {}", creditId, price);
+        } catch (Exception e) {
+            log.error("❌ Failed to broadcast price update: {}", e.getMessage());
+        }
+    }
+
+    public void notifyOrderFailure(String userId, String orderId, String creditId, String reason) {
+        try {
+            OrderNotificationDTO notification = OrderNotificationDTO.builder()
+                    .type("ORDER_FAILED")
+                    .orderId(orderId)
+                    .creditId(creditId)
+                    .message("Order cancelled due to system error: " + reason)
+                    .timestamp(System.currentTimeMillis())
+                    .build();
+
+            // Spring sẽ map thành: /user/{userId}/queue/errors
+            messagingTemplate.convertAndSendToUser(
+                    userId,
+                    "/queue/errors",
+                    notification
+            );
+
+            log.info("Sent failure notification to user {}", userId);
+
+        } catch (Exception e) {
+            log.error("Failed to send WS notification: {}", e.getMessage());
+        }
+    }
+
+    // ==================== HELPER METHODS ====================
+
+    /**
+     * Helper: Chuyển đổi object sang BigDecimal an toàn
+     */
+    private BigDecimal getBigDecimal(Object value) {
+        if (value == null) return BigDecimal.ZERO;
+        if (value instanceof BigDecimal) return (BigDecimal) value;
+        if (value instanceof String) {
+            try {
+                return new BigDecimal((String) value);
+            } catch (NumberFormatException e) {
+                log.warn("⚠️ Invalid number format for BigDecimal: {}", value);
+                return BigDecimal.ZERO;
+            }
+        }
+        if (value instanceof Integer) return BigDecimal.valueOf((Integer) value);
+        if (value instanceof Double) return BigDecimal.valueOf((Double) value);
+        if (value instanceof Long) return BigDecimal.valueOf((Long) value);
+
+        return BigDecimal.ZERO;
+    }
+
+    /**
+     * Helper: Chuyển đổi object sang Integer an toàn
+     */
+    private Integer getInteger(Object value) {
+        if (value == null) return 0;
+        if (value instanceof Integer) return (Integer) value;
+        if (value instanceof Number) return ((Number) value).intValue();
+        if (value instanceof String) {
+            try {
+                return Integer.parseInt((String) value);
+            } catch (NumberFormatException e) {
+                log.warn("⚠️ Invalid number format for Integer: {}", value);
+                return 0;
+            }
+        }
+        return 0;
     }
 }

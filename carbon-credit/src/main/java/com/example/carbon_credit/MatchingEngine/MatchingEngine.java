@@ -36,6 +36,8 @@ public class MatchingEngine {
             return new OrderBook(k);
         });
 
+        System.out.printf("Orderbook:", String.valueOf(orderBook));
+
         // Handle Market Orders (price = 0)
         boolean isMarketOrder = command.getPrice().compareTo(BigDecimal.ZERO) == 0;
         if (isMarketOrder) {
@@ -146,5 +148,25 @@ public class MatchingEngine {
         command.setPrice(isBuy ? new BigDecimal("999999999") : new BigDecimal("0.01"));
         
         log.info("📊 Market order converted: {} @ price={}", command.getOrderType(), command.getPrice());
+    }
+
+    public boolean hasOrderBook(String creditId) {
+        return orderBooks.containsKey(creditId);
+    }
+
+    public void createOrderBook(String creditId) {
+        if (!orderBooks.containsKey(creditId)) {
+            log.info("📊 Creating new OrderBook for creditId: {}", creditId);
+            orderBooks.put(creditId, new OrderBook(creditId));
+        }
+    }
+
+    public Map<String, Object> getOrderBookSnapshot(String creditId) {
+        OrderBook orderBook = orderBooks.get(creditId);
+        if (orderBook == null) {
+            return null;
+        }
+
+        return orderBook.getSnapshot();
     }
 }

@@ -31,6 +31,18 @@ public class OrderService {
         return orderRepository.findByUserIdAndStatus(userId, "OPEN");
     }
 
+    public List<Order> getOrdersByUserIdAndStatus(String userId, String status) {
+        return orderRepository.findByUserIdAndStatus(userId, status);
+    }
+
+    public List<Order> getOrdersByUserIdAndCreditId(String userId, String creditId) {
+        return orderRepository.findByUserIdAndCreditId(userId, creditId);
+    }
+
+    public List<Order> getOrdersByUserIdAndStatusAndCreditId(String userId, String status, String creditId) {
+        return orderRepository.findByUserIdAndStatusAndCreditId(userId, status, creditId);
+    }
+
     /**
      * Find order by ID
      */

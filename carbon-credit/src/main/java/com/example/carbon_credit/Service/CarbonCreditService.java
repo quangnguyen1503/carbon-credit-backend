@@ -64,4 +64,7 @@ public class CarbonCreditService {
         return carbonCreditRepository.save(carbonCredit);
     }
 
+    public CarbonCredit getCarbonCreditByTokenId(long tokenId) {
+        return carbonCreditRepository.findByTokenId(tokenId).orElse(null);
+    }
 }
