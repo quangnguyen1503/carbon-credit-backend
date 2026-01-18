@@ -36,7 +36,7 @@ public class MatchingEngine {
             return new OrderBook(k);
         });
 
-        System.out.printf("Orderbook:", String.valueOf(orderBook));
+        log.debug("OrderBook created/retrieved: {}", orderBook.getCreditId());
 
         // Handle Market Orders (price = 0)
         boolean isMarketOrder = command.getPrice().compareTo(BigDecimal.ZERO) == 0;
@@ -89,9 +89,7 @@ public class MatchingEngine {
      */
     public Map<String, Map<String, Object>> getAllOrderBooks() {
         Map<String, Map<String, Object>> snapshots = new ConcurrentHashMap<>();
-        orderBooks.forEach((creditId, orderBook) -> 
-            snapshots.put(creditId, orderBook.getSnapshot())
-        );
+        orderBooks.forEach((creditId, orderBook) -> snapshots.put(creditId, orderBook.getSnapshot()));
         return snapshots;
     }
 
@@ -141,12 +139,12 @@ public class MatchingEngine {
      */
     private void handleMarketOrder(PlaceOrderCommandDTO command) {
         boolean isBuy = "BUY".equalsIgnoreCase(command.getOrderType());
-        
+
         // Set price to guarantee immediate match
         // Buy: giá cực cao để ăn hết ask orders
         // Sell: giá 0.01 để ăn hết bid orders
         command.setPrice(isBuy ? new BigDecimal("999999999") : new BigDecimal("0.01"));
-        
+
         log.info("📊 Market order converted: {} @ price={}", command.getOrderType(), command.getPrice());
     }
 

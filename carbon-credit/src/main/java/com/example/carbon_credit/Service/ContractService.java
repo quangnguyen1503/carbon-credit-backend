@@ -1,6 +1,9 @@
 package com.example.carbon_credit.Service;
 
+import com.example.carbon_credit.DTO.CertificateRecordDTO;
 import com.example.carbon_credit.DTO.TradeDTO;
+import com.example.carbon_credit.Entity.Certificate;
+import com.example.carbon_credit.Entity.CertificateRecord;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -23,9 +26,7 @@ import org.web3j.tx.response.PollingTransactionReceiptProcessor;
 import org.web3j.tx.response.TransactionReceiptProcessor;
 
 import java.math.BigInteger;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -36,6 +37,9 @@ public class ContractService {
 
     @Value("${blockchain.contract.exchange.address}")
     private String exchangeContractAddress;
+
+    @Value("${blockchain.contract.system.address}")
+    private String systemContractAddress;
 
     @Value("${blockchain.settlement.operator.private-key}")
     private String settlementOperatorPrivateKey;
@@ -230,7 +234,6 @@ public class ContractService {
         TransactionManager txManager = new RawTransactionManager(web3j, credentials, chainId, receiptProcessor);
 
         // Mapping TradeStruct
-        // Mapping TradeStruct
         List<StaticStruct> tradeStructs = trades.stream()
                 .map(trade -> new StaticStruct(
                         new Address(trade.getBuyer()),
@@ -330,15 +333,15 @@ public class ContractService {
                     Arrays.asList(new Utf8String(orderId)),
                     Arrays.asList(
                             new TypeReference<Address>() {
-                            }, // user
+                            },
                             new TypeReference<Bool>() {
-                            }, // isCreditToken
+                            },
                             new TypeReference<Uint256>() {
-                            }, // tokenId
+                            },
                             new TypeReference<Uint256>() {
-                            }, // amount
+                            },
                             new TypeReference<Bool>() {
-                            } // isActive
+                            }
                     ));
 
             String encodedFunction = FunctionEncoder.encode(function);
@@ -357,6 +360,86 @@ public class ContractService {
         } catch (Exception e) {
             log.error("Failed to fetch locked balance for {}: {}", orderId, e.getMessage());
             return "ERROR";
+        }
+    }
+
+    public static class RetirementRecordStruct extends StaticStruct {
+        public Uint256 certificateId;
+        public Uint256 tokenId;
+        public Uint256 creditAmount;
+
+        public RetirementRecordStruct(Uint256 a, Uint256 b, Uint256 c) {
+            super(a, b, c);
+            this.certificateId = a;
+            this.tokenId = b;
+            this.creditAmount = c;
+        }
+
+        // Constructor rỗng bắt buộc
+        public RetirementRecordStruct() {
+            super(new Uint256(0), new Uint256(0), new Uint256(0));
+        }
+    }
+
+    public List<CertificateRecordDTO> getCertificateRecords(BigInteger certificateId) {
+        try {
+            // 1. Định nghĩa Function call
+            // Solidity: function getCertificateRecords(uint256) returns (RetirementRecord[])
+            Function function = new Function(
+                    "getCertificateRecords",
+                    Arrays.asList(new Uint256(certificateId)),
+                    Collections.singletonList(new TypeReference<DynamicArray<RetirementRecordStruct>>() {})
+            );
+
+            // 2. Encode function call
+            String encodedFunction = FunctionEncoder.encode(function);
+
+            String targetContract = systemContractAddress;
+
+            EthCall response = web3j.ethCall(
+                            Transaction.createEthCallTransaction(null, targetContract, encodedFunction),
+                            DefaultBlockParameterName.LATEST)
+                    .send();
+
+            if (response.hasError()) {
+                log.error("EthCall error getting certificate records: {}", response.getError().getMessage());
+                return new ArrayList<>();
+            }
+
+            String value = response.getValue();
+            log.info("🔍 Raw response value for CertID {}: {}", certificateId, value);
+
+            if (value == null || value.equals("0x")) {
+                return new ArrayList<>();
+            }
+
+            // 3. Decode dữ liệu trả về
+            List<Type> result = FunctionReturnDecoder.decode(value, function.getOutputParameters());
+
+            if (result.isEmpty()) {
+                return new ArrayList<>();
+            }
+
+            // 4. Map từ Web3j Struct sang Java DTO
+            List<CertificateRecordDTO> records = new ArrayList<>();
+
+
+            // Kết quả trả về là một List chứa 1 phần tử, phần tử đó là DynamicArray
+            List<RetirementRecordStruct> structList = (List<RetirementRecordStruct>) result.get(0).getValue();
+
+            for (RetirementRecordStruct struct : structList) {
+                records.add(new CertificateRecordDTO(
+                        struct.certificateId.getValue(),
+                        struct.tokenId.getValue(),
+                        struct.creditAmount.getValue()
+                ));
+            }
+
+            return records;
+
+        } catch (Exception e) {
+            log.error("Failed to fetch certificate records for ID {}: {}", certificateId, e.getMessage());
+            return new ArrayList<>();
         }
     }
 }

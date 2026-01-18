@@ -1,37 +1,40 @@
 package com.example.carbon_credit.Entity;
 
 import jakarta.persistence.*;
-import lombok.Data;
+import lombok.*;
+
+import java.math.BigInteger;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
 
 @Entity
 @Table(name = "certificate")
-@Data
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class Certificate {
 
     @Id
+    @Column(name = "id", length = 36)
     private String id;
 
+    @Column(name = "nft_token_id", unique = true, nullable = false)
+    private BigInteger nftTokenId;
+
+    @Column(name = "user_id")
     private String userId;
-    private String reason;
-    private Integer totalAmount;
 
-    private String status; // PENDING_APPROVAL, APPROVED, ONCHAIN_CONFIRMED
+    @Column(name = "total_amount")
+    private BigInteger totalAmount;
 
-    private String onchainTxHash;
-    private String nftTokenId;
+    @Column(name = "tx_hash")
+    private String txHash;
 
-    private String approvedBy;
-
+    @Column(name = "created_at")
     private LocalDateTime createdAt;
-    private LocalDateTime approvedAt;
 
-    @OneToMany(
-            mappedBy = "certificate",
-            cascade = CascadeType.ALL,
-            orphanRemoval = true
-    )
-    private List<CertificateRecord> records = new ArrayList<>();
+    @OneToMany(mappedBy = "certificate", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<CertificateRecord> records;
 }

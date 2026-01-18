@@ -31,8 +31,6 @@ public class PlaceOrderCommandDTO {
     @Pattern(regexp = "LIMIT|MARKET", message = "Order condition must be LIMIT or MARKET")
     private String orderCondition;
 
-    @NotNull(message = "Price is required")
-    @DecimalMin(value = "0.00000001", message = "Price must be greater than 0")
     private BigDecimal price;
 
     @NotNull(message = "Amount is required")

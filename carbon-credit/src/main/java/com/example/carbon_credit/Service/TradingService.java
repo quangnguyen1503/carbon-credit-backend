@@ -28,6 +28,9 @@ public class TradingService {
     private final KafkaProducerService kafkaProducerService;
     private final MatchingEngine matchingEngine;
     private final ContractService contractService;
+    private final WsService wsService;
+
+    private static final BigDecimal SLIPPAGE_BUFFER = new BigDecimal("1.05");
 
     /**
      * Place order: Lưu DB + Gửi vào Kafka
@@ -39,21 +42,52 @@ public class TradingService {
             throw new IllegalArgumentException("Invalid amount or price");
         }
 
+        boolean isMarket = "MARKET".equalsIgnoreCase(request.getOrderCondition());
+        boolean isBuy = "BUY".equalsIgnoreCase(request.getOrderType());
+
+        BigDecimal calculationPrice;
+
+        if (isMarket) {
+            if (isBuy) {
+                Map<String, Object> snapshot = matchingEngine.getOrderBookSnapshot(request.getCreditId());
+                BigDecimal bestAsk = (BigDecimal) snapshot.get("bestAsk");
+
+                if (bestAsk == null || bestAsk.compareTo(BigDecimal.ZERO) == 0) {
+                    throw new RuntimeException("Cannot place Market Buy Order: No sellers available (No Liquidity)");
+                }
+
+                calculationPrice = bestAsk.multiply(SLIPPAGE_BUFFER);
+
+                request.setPrice(calculationPrice);
+            } else {
+                calculationPrice = BigDecimal.ZERO;
+                request.setPrice(calculationPrice);
+            }
+        } else {
+            if (request.getPrice().compareTo(BigDecimal.ZERO) <= 0) {
+                throw new IllegalArgumentException("Limit Order requires price > 0");
+            }
+            calculationPrice = request.getPrice();
+        }
+
         BigInteger amount = BigInteger.valueOf(request.getAmount());
-        BigInteger priceWei = request.getPrice().multiply(new BigDecimal("1000000000000000000")).toBigInteger();
+        BigInteger priceWei = calculationPrice.multiply(new BigDecimal("1000000000000000000")).toBigInteger();
         BigInteger totalValue = amount.multiply(priceWei);
 
         try {
             if (request.getOrderType().equalsIgnoreCase("BUY")) {
                 BigInteger nativeBalance = contractService.getNativeBalance(userId);
                 if (nativeBalance.compareTo(totalValue) < 0) {
-                    String.format("Insufficient native balance. Required: %s, Available: %s", totalValue, nativeBalance);
+                    String.format("Insufficient native balance. Required: %s, Available: %s", totalValue,
+                            nativeBalance);
                 }
             } else if (request.getOrderType().equalsIgnoreCase("SELL")) {
                 BigInteger creditTokenId = new BigInteger(request.getCreditId());
                 BigInteger creditBalance = contractService.getCreditBalance(userId, creditTokenId);
                 if (creditBalance.compareTo(amount) < 0) {
-                    throw new IllegalArgumentException(String.format("Insufficient credit balance. Required: %d, Available: %s", request.getAmount(), creditBalance));
+                    throw new IllegalArgumentException(
+                            String.format("Insufficient credit balance. Required: %d, Available: %s",
+                                    request.getAmount(), creditBalance));
                 }
             }
         } catch (Exception e) {
@@ -63,7 +97,18 @@ public class TradingService {
 
         // Tạo order entity
         String orderId = UUID.randomUUID().toString();
-        Order order = Order.builder().id(orderId).userId(userId).creditId(request.getCreditId()).orderType(request.getOrderType()).orderCondition(request.getOrderCondition()).price(request.getPrice()).amount(request.getAmount()).remainingAmount(request.getAmount()).status("PENDING").createdAt(LocalDateTime.now()).build();
+        Order order = Order.builder()
+                .id(orderId)
+                .userId(userId)
+                .creditId(request.getCreditId())
+                .orderType(request.getOrderType())
+                .orderCondition(request.getOrderCondition())
+                .price(request.getPrice())
+                .amount(request.getAmount())
+                .remainingAmount(request.getAmount())
+                .status("PENDING")
+                .createdAt(LocalDateTime.now())
+                .build();
 
         // Lưu DB trước
         orderRepository.save(order);
@@ -91,7 +136,15 @@ public class TradingService {
         }
 
         // Tạo command để gửi Kafka
-        PlaceOrderCommandDTO command = PlaceOrderCommandDTO.builder().orderId(order.getId()).userId(userId).creditId(request.getCreditId()).orderType(request.getOrderType()).orderCondition(request.getOrderCondition()).price(request.getPrice()).amount(request.getAmount()).build();
+        PlaceOrderCommandDTO command = PlaceOrderCommandDTO.builder()
+                .orderId(order.getId())
+                .userId(userId)
+                .creditId(request.getCreditId())
+                .orderType(request.getOrderType())
+                .orderCondition(request.getOrderCondition())
+                .price(isMarket ? BigDecimal.ZERO : request.getPrice())
+                .amount(request.getAmount())
+                .build();
 
         // Gửi vào Kafka (bất đồng bộ)
         kafkaProducerService.sendOrder(command);
@@ -119,17 +172,59 @@ public class TradingService {
             order.setUpdatedAt(LocalDateTime.now());
             orderRepository.save(order);
 
+            Map<String, Object> snapshot = matchingEngine.getOrderBookSnapshot(order.getCreditId());
+            wsService.broadcastOrderBookUpdate(order.getCreditId(), snapshot);
+
+            // B. Thông báo riêng cho User (Để cập nhật UI "My Orders")
+            wsService.notifyOrderCancelled(order.getUserId(), order.getId(), order.getCreditId());
+
             log.info("✅ Order {} cancelled", order.getId());
             return true;
         }
 
         log.warn("❌ Failed to cancel order {}", order.getId());
+        // ... (existing cancelOrder method remains same)
         return false;
+    }
+
+    /**
+     * Expire order: Remove from matching engine + Unlock Balance + Update DB
+     * (EXPIRED)
+     * Called by scheduled task.
+     */
+    @Transactional
+    public void expireOrder(Order order) {
+        boolean removed = matchingEngine.cancelOrder(order.getCreditId(), order.getId());
+
+        if (removed) {
+            log.info("removed order from matching engine: {}", order.getId());
+            // Broadcast OrderBook Update immediately
+            Map<String, Object> snapshot = matchingEngine.getOrderBookSnapshot(order.getCreditId());
+            wsService.broadcastOrderBookUpdate(order.getCreditId(), snapshot);
+        } else {
+            log.warn("Order {} not found in Matching Engine during expiry", order.getId());
+        }
+
+        try {
+            contractService.unlockBalance(order.getId());
+            log.info("Unlocked balance on blockchain for expired order {}", order.getId());
+        } catch (Exception e) {
+            log.error("Failed to unlock balance for expired order {}: {}", order.getId(), e.getMessage());
+        }
+
+        order.setStatus("EXPIRED");
+        order.setUpdatedAt(LocalDateTime.now());
+        orderRepository.save(order);
+
+        wsService.notifyOrderExpired(order.getUserId(), order.getId(), order.getCreditId());
+
+        log.info("✅ Order {} expired successfully", order.getId());
     }
 
     public boolean hasActiveOrderBook(String projectId) {
         CarbonCredit credit = carbonCreditRepository.findByProjectId(projectId).orElse(null);
-        if (credit == null) return false;
+        if (credit == null)
+            return false;
 
         String creditId = String.valueOf(credit.getTokenId());
         return matchingEngine.hasOrderBook(creditId);

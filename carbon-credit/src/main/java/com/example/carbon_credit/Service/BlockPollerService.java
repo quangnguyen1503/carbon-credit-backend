@@ -212,6 +212,8 @@ public class BlockPollerService {
             eventDTO.setTopics(logData.getTopics());
             eventDTO.setData(logData.getData());
 
+
+
             kafkaProducer.sendOnChainEvent(eventDTO);
             log.info("✅ Sent {} to Kafka", eventType);
 

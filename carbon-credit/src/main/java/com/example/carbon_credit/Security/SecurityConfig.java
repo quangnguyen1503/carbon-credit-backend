@@ -40,7 +40,10 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/login").permitAll()  // Public login
-                        .requestMatchers("/ws/**").permitAll()  // ← SỬA: Double ** để match SockJS subpaths
+                        .requestMatchers("/ws/**").permitAll()
+                        .requestMatchers("/api/market/ohlc/**").permitAll()
+                        .requestMatchers("/api/market/recent/**").permitAll()
+                        .requestMatchers("/snapshot/**").permitAll()
                         .requestMatchers("/api/auth/*").permitAll()  // Existing login
                         .requestMatchers("/api/orders/*").authenticated()  // Your orders endpoint
                         .requestMatchers("/api/orders/snapshot/**").permitAll()
@@ -72,6 +75,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/projects/*").permitAll()
                         .requestMatchers("/api/wallet/my-credits").authenticated()
                         .requestMatchers("/api/wallet/my-natives").authenticated()
+
 
 
                         .anyRequest().authenticated()

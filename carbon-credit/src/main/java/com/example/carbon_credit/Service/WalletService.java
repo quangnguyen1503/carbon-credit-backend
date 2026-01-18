@@ -5,12 +5,11 @@ import com.example.carbon_credit.DTO.MyCreditResponse;
 import com.example.carbon_credit.DTO.MyNativeResponse;
 import com.example.carbon_credit.Entity.*;
 import com.example.carbon_credit.Repository.*;
+import com.example.carbon_credit.Util.BlockchainHelper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.web3j.abi.FunctionReturnDecoder;
-import org.web3j.abi.TypeDecoder;
 import org.web3j.abi.TypeReference;
 import org.web3j.abi.datatypes.Address;
 import org.web3j.abi.datatypes.Bool;
@@ -59,8 +58,8 @@ public class WalletService {
                 return;
             }
 
-            String userAddress = extractAddress(event, 1);
-            BigInteger amount = extractUint256(event, 0);
+            String userAddress = BlockchainHelper.extractAddressFromTopic(event, 1);
+            BigInteger amount = BlockchainHelper.extractUint256FromData(event, 0);
 
             if (userAddress == null || amount == null) {
                 log.error("❌ Invalid NATIVE_DEPOSITED event data");
@@ -115,8 +114,8 @@ public class WalletService {
                 return;
             }
 
-            String userAddress = extractAddress(event, 1);
-            BigInteger amount = extractUint256(event, 0);
+            String userAddress = BlockchainHelper.extractAddressFromTopic(event, 1);
+            BigInteger amount = BlockchainHelper.extractUint256FromData(event, 0);
 
             if (userAddress == null || amount == null) {
                 log.error("❌ Invalid NATIVE_WITHDRAWN event data");
@@ -167,10 +166,9 @@ public class WalletService {
                 return;
             }
 
-            String userAddress = extractAddress(event, 1);
-            BigInteger creditTokenId = extractUint256FromTopic(event, 2);
-            BigInteger amount = extractUint256(event, 0);
-
+            String userAddress = BlockchainHelper.extractAddressFromTopic(event, 1);
+            BigInteger creditTokenId = BlockchainHelper.extractUint256FromTopic(event, 2);
+            BigInteger amount = BlockchainHelper.extractUint256FromData(event, 0);
 
             if (userAddress == null || creditTokenId == null || amount == null) {
                 log.error("❌ Invalid CREDIT_DEPOSIT event data");
@@ -243,9 +241,9 @@ public class WalletService {
                 return;
             }
 
-            String userAddress = extractAddress(event, 1);
-            BigInteger creditTokenId = extractUint256FromTopic(event, 2);
-            BigInteger amount = extractUint256(event, 0);
+            String userAddress = BlockchainHelper.extractAddressFromTopic(event, 1);
+            BigInteger creditTokenId = BlockchainHelper.extractUint256FromTopic(event, 2);
+            BigInteger amount = BlockchainHelper.extractUint256FromData(event, 0);
 
             if (userAddress == null || creditTokenId == null || amount == null) {
                 log.error("❌ Invalid CREDIT_WITHDRAW event data");
@@ -297,7 +295,14 @@ public class WalletService {
                 return;
             }
 
-            List<Type> decoded = decodeLockedData(event.getData());
+            List<TypeReference<Type>> params = Arrays.asList(
+                    (TypeReference) new TypeReference<Utf8String>() {}, // 0. orderId
+                    (TypeReference) new TypeReference<Address>() {},    // 1. user
+                    (TypeReference) new TypeReference<Uint256>() {},    // 2. amount
+                    (TypeReference) new TypeReference<Bool>() {}        // 3. isCreditToken
+            );
+
+            List<Type> decoded = BlockchainHelper.decodeAnyData(event.getData(), params);
 
             if (decoded == null || decoded.size() < 3) {
                 log.error("❌ Failed to decode BALANCE_LOCKED data");
@@ -392,7 +397,13 @@ public class WalletService {
                 return;
             }
 
-            List<Type> decoded = decodeUnlockedData(event.getData());
+            List<TypeReference<Type>> params = Arrays.asList(
+                    (TypeReference) new TypeReference<Utf8String>() {},
+                    (TypeReference) new TypeReference<Address>() {},
+                    (TypeReference) new TypeReference<Uint256>() {}
+            );
+
+            List<Type> decoded = BlockchainHelper.decodeAnyData(event.getData(), params);
 
             if (decoded == null || decoded.size() < 3) {
                 log.error("❌ Failed to decode BALANCE_LOCKED data");
@@ -446,6 +457,7 @@ public class WalletService {
 
                     // Cộng lại vào ví Native
                     wallet.setNativeBalance(wallet.getNativeBalance().add(unlockAmount));
+                    wallet.setNativeLocked(wallet.getNativeLocked().subtract(unlockAmount));
                     wallet.setUpdatedAt(LocalDateTime.now());
                     walletRepository.save(wallet);
                 }
@@ -474,13 +486,18 @@ public class WalletService {
                 return;
             }
 
-            // 1. Giải mã dữ liệu từ Event
-            // Topics: [0:Hash, 1:BatchId, 2:Buyer, 3:Seller]
-            String buyerAddress = extractAddress(event, 2);
-            String sellerAddress = extractAddress(event, 3);
+            String buyerAddress = BlockchainHelper.extractAddressFromTopic(event, 2);
+            String sellerAddress = BlockchainHelper.extractAddressFromTopic(event, 3);
+
+            List<TypeReference<Type>> params = Arrays.asList(
+                    (TypeReference) new TypeReference<Uint256>() {},
+                    (TypeReference) new TypeReference<Uint256>() {},
+                    (TypeReference) new TypeReference<Uint256>() {}
+            );
+
 
             // Data: [0:TokenId, 1:Amount, 2:TotalValue]
-            List<Type> decodedData = decodeTradeSettledData(event.getData());
+            List<Type> decodedData = BlockchainHelper.decodeAnyData(event.getData(), params);
 
             if (decodedData == null || decodedData.size() < 3) {
                 log.error("❌ Failed to decode TRADE_SETTLED data");
@@ -583,100 +600,6 @@ public class WalletService {
             log.error("❌ Error handling TRADE_SETTLED: {}", e.getMessage(), e);
             throw e;
         }
-    }
-
-    // ==================== Helper Methods ====================
-    private String extractAddress(BlockchainEventDTO event, int topicIndex) {
-        try {
-            if (event.getTopics().size() <= topicIndex) {
-                return null;
-            }
-            String topic = event.getTopics().get(topicIndex);
-            Address address = TypeDecoder.decodeAddress(topic);
-            return address.getValue();
-        } catch (Exception e) {
-            log.error("❌ Failed to extract address from topic {}: {}", topicIndex, e.getMessage());
-            return null;
-        }
-    }
-
-    private BigInteger extractUint256(BlockchainEventDTO event, int dataIndex) {
-        try {
-            String data = event.getData();
-            if (data.startsWith("0x")) {
-                data = data.substring(2);
-            }
-
-            int offset = dataIndex * 64;
-            if (data.length() < offset + 64) {
-                return null;
-            }
-
-            String hexValue = data.substring(offset, offset + 64);
-            Uint256 uint = TypeDecoder.decodeNumeric(hexValue, Uint256.class);
-            return uint.getValue();
-        } catch (Exception e) {
-            log.error("❌ Failed to extract uint256 at index {}: {}", dataIndex, e.getMessage());
-            return null;
-        }
-    }
-
-    private BigInteger extractUint256FromTopic(BlockchainEventDTO event, int topicIndex) {
-        try {
-            if (event.getTopics() == null || event.getTopics().size() <= topicIndex) {
-                return null;
-            }
-
-            String hex = event.getTopics().get(topicIndex);
-
-            // Bỏ prefix "0x"
-            if (hex.startsWith("0x")) {
-                hex = hex.substring(2);
-            }
-
-            // Topic luôn là 32 bytes (64 ký tự hex)
-            return new BigInteger(hex, 16);
-
-        } catch (Exception e) {
-            log.error("❌ Failed to extract uint256 from topic {}: {}", topicIndex, e.getMessage());
-            return null;
-        }
-    }
-
-    private List<Type> decodeLockedData(String data) {
-        List<TypeReference<Type>> outputParameters = Arrays.asList((TypeReference) new TypeReference<Utf8String>() {
-                }, // 0. string orderId
-                (TypeReference) new TypeReference<Address>() {
-                },    // 1. address user (MỚI THÊM)
-                (TypeReference) new TypeReference<Uint256>() {
-                },    // 2. uint256 amount
-                (TypeReference) new TypeReference<Bool>() {
-                }        // 3. bool isCreditToken
-        );
-        return FunctionReturnDecoder.decode(data, outputParameters);
-    }
-
-    /**
-     * Giải mã Data cho BalanceUnlocked
-     */
-    private List<Type> decodeUnlockedData(String data) {
-        List<TypeReference<Type>> outputParameters = Arrays.asList((TypeReference) new TypeReference<Utf8String>() {
-                }, // 1. string orderId
-                (TypeReference) new TypeReference<Uint256>() {
-                }     // 2. uint256 amount
-        );
-        return FunctionReturnDecoder.decode(data, outputParameters);
-    }
-
-    private List<Type> decodeTradeSettledData(String data) {
-        List<TypeReference<Type>> outputParameters = Arrays.asList((TypeReference) new TypeReference<Uint256>() {
-                }, // 0. creditTokenId
-                (TypeReference) new TypeReference<Uint256>() {
-                }, // 1. creditAmount
-                (TypeReference) new TypeReference<Uint256>() {
-                }  // 2. totalValue
-        );
-        return FunctionReturnDecoder.decode(data, outputParameters);
     }
 
 }

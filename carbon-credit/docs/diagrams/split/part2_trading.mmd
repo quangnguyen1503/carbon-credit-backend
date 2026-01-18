@@ -1,0 +1,77 @@
+classDiagram
+    %% PART 2: TRADING SYSTEM
+
+    %% ==================== CONTROLLERS ====================
+    class OrderController {
+        +placeOrder(PlaceOrderCommandDTO)
+        +cancelOrder(String)
+        +getOrderBook(String)
+    }
+    class MarketController
+
+    %% ==================== SERVICES ====================
+    class TradingService {
+        +placeOrder(PlaceOrderCommandDTO, String) Order
+        +cancelOrder(Order) boolean
+        +expireOrder(Order)
+        +ensureOrderBookExists(String)
+    }
+
+    %% ==================== CORE ENGINE ====================
+    class MatchingEngine {
+        -Map~String, OrderBook~ orderBooks
+        +processOrder(PlaceOrderCommandDTO) List~TradeEventDTO~
+        +cancelOrder(String, String) boolean
+        +getOrderBookSnapshot(String) Map
+    }
+    class OrderBook {
+        -String creditId
+        +matchOrder(PlaceOrderCommandDTO) List~TradeEventDTO~
+        +addOrder(OrderNode)
+        +removeOrder(String) boolean
+    }
+
+    %% ==================== ENTITIES ====================
+    class Order {
+        +String id
+        +String userId
+        +String creditId
+        +String orderType
+        +BigDecimal price
+        +Integer amount
+        +Integer remainingAmount
+        +String status
+    }
+
+    %% ==================== DTOs ====================
+    class PlaceOrderCommandDTO {
+        -String orderId
+        -String userId
+        -String creditId
+        -String orderType
+        -BigDecimal price
+        -Integer amount
+        -Long timestamp
+    }
+    class OrderBookUpdateDTO {
+        -String creditId
+        -List~PriceLevel~ bids
+        -List~PriceLevel~ asks
+    }
+    class TradeEventDTO {
+        -String tradeId
+        -String buyOrderId
+        -String sellOrderId
+        -Integer amount
+        -BigDecimal price
+        -BigDecimal totalValue
+        -LocalDateTime tradeAt
+    }
+
+    %% ==================== RELATIONSHIPS ====================
+    OrderController ..> TradingService
+    TradingService ..> MatchingEngine
+    MatchingEngine *-- OrderBook
+    TradingService ..> Order : Manage
+    MatchingEngine ..> TradeEventDTO : Produce
+    OrderController ..> PlaceOrderCommandDTO : Uses

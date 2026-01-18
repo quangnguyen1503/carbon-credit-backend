@@ -6,7 +6,4 @@ public class TypeProject {
     public static final String CARBON_REMOVE = "CARBON_REMOVE";
     public static final String OTHERS = "OTHERS";
 
-
-
-
 }

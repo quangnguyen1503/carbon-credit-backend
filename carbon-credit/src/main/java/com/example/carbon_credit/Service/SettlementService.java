@@ -50,85 +50,97 @@ public class SettlementService {
      * Settle batch every 30 seconds (hoặc khi đủ 10 trades)
      */
     @Scheduled(fixedDelay = 30000)
-    public synchronized void settleBatch() {
-        if (batchQueue.isEmpty())
-            return;
+    public void settleBatch() {
+
+        List<TradeEventDTO> currentBatch;
+
+        synchronized (this) {
+            if (batchQueue.isEmpty()) return;
+            currentBatch = new ArrayList<>(batchQueue);
+            batchQueue.clear();
+        }
 
         long batchId = batchIdCounter.getAndIncrement();
-        log.info("⛓️ Settling batch {} with {} trades...", batchId, batchQueue.size());
+        log.info("⛓️ Settling batch {} with {} trades...", batchId, currentBatch);
+
+        batchQueue.clear();
+        List<TradeDTO> trades = new ArrayList<>();
+        List<String> buyOrderIds = new ArrayList<>();
+        List<String> sellOrderIds = new ArrayList<>();
+        List<TradeEventDTO> validEvents = new ArrayList<>();
+        List<TradeEventDTO> invalidEvents = new ArrayList<>();
 
         try {
-            List<TradeDTO> trades = new ArrayList<>();
-            List<String> buyOrderIds = new ArrayList<>();
-            List<String> sellOrderIds = new ArrayList<>();
+            for (TradeEventDTO tradeEvent : currentBatch) {
+                try {
+                    Order buyOrder = orderRepository.findById(tradeEvent.getBuyOrderId()).orElseThrow(
+                            () -> new IllegalArgumentException("Buy order not found: " + tradeEvent.getBuyOrderId()));
 
-            for (TradeEventDTO tradeEvent : batchQueue) {
-                // 🔍 LẤY WALLET ADDRESS TỪ ORDER
-                Order buyOrder = orderRepository.findById(tradeEvent.getBuyOrderId()).orElseThrow(
-                        () -> new IllegalArgumentException("Buy order not found: " + tradeEvent.getBuyOrderId()));
+                    Order sellOrder = orderRepository.findById(tradeEvent.getSellOrderId()).orElseThrow(
+                            () -> new IllegalArgumentException("Sell order not found: " + tradeEvent.getSellOrderId()));
 
-                Order sellOrder = orderRepository.findById(tradeEvent.getSellOrderId()).orElseThrow(
-                        () -> new IllegalArgumentException("Sell order not found: " + tradeEvent.getSellOrderId()));
+                    // userId chính là wallet address
+                    String buyerAddress = buyOrder.getUserId().trim().toLowerCase();
+                    String sellerAddress = sellOrder.getUserId().trim().toLowerCase();
 
-                // userId chính là wallet address
-                String buyerAddress = buyOrder.getUserId().trim().toLowerCase();
-                String sellerAddress = sellOrder.getUserId().trim().toLowerCase();
+                    String onChainOwner = contractService.getLockedBalanceOwner(tradeEvent.getBuyOrderId());
 
-                String onChainOwner = contractService.getLockedBalanceOwner(tradeEvent.getBuyOrderId());
+                    log.info("🕵️‍♂️ DETECTIVE MODE - Order: {}", tradeEvent.getBuyOrderId());
+                    log.info("   👉 Java DB Buyer:   {}", buyerAddress);
+                    log.info("   👉 On-Chain Owner:  {}", onChainOwner);
 
-                log.info("🕵️‍♂️ DETECTIVE MODE - Order: {}", tradeEvent.getBuyOrderId());
-                log.info("   👉 Java DB Buyer:   {}", buyerAddress);
-                log.info("   👉 On-Chain Owner:  {}", onChainOwner);
+                    if (!buyerAddress.equals(onChainOwner)) {
+                        log.error("🚨 MISMATCH DETECTED! Java says buyer is {}, but Blockchain says lock belongs to {}",
+                                buyerAddress, onChainOwner);
+                        invalidEvents.add(tradeEvent);
+                        continue;
+                    }
 
-                if (!buyerAddress.equals(onChainOwner)) {
-                    log.error("🚨 MISMATCH DETECTED! Java says buyer is {}, but Blockchain says lock belongs to {}",
-                            buyerAddress, onChainOwner);
-                    continue;
+                    // Calculate amounts
+                    BigInteger creditTokenId = new BigInteger(tradeEvent.getCreditId());
+                    BigInteger creditAmount = BigInteger.valueOf(tradeEvent.getAmount());
+                    BigInteger priceWei = tradeEvent.getPrice().multiply(new BigDecimal("1000000000000000000"))
+                            .toBigInteger();
+                    BigInteger totalValue = priceWei.multiply(creditAmount);
+
+                    // Create trade struct
+                    TradeDTO trade = TradeDTO.builder().buyer(buyerAddress) // ← Wallet address
+                            .seller(sellerAddress) // ← Wallet address
+                            .creditTokenId(creditTokenId).creditAmount(creditAmount).totalValue(totalValue).build();
+
+                    trades.add(trade);
+                    buyOrderIds.add(tradeEvent.getBuyOrderId());
+                    sellOrderIds.add(tradeEvent.getSellOrderId());
+                    validEvents.add(tradeEvent);
+                } catch (Exception e) {
+                    log.error("⚠️ Error preparing trade: {}", e.getMessage());
+                    invalidEvents.add(tradeEvent);
                 }
-
-                // Calculate amounts
-                BigInteger creditTokenId = new BigInteger(tradeEvent.getCreditId());
-                BigInteger creditAmount = BigInteger.valueOf(tradeEvent.getAmount());
-                BigInteger priceWei = tradeEvent.getPrice().multiply(new BigDecimal("1000000000000000000"))
-                        .toBigInteger();
-                BigInteger totalValue = priceWei.multiply(creditAmount);
-
-                // Create trade struct
-                TradeDTO trade = TradeDTO.builder().buyer(buyerAddress) // ← Wallet address
-                        .seller(sellerAddress) // ← Wallet address
-                        .creditTokenId(creditTokenId).creditAmount(creditAmount).totalValue(totalValue).build();
-
-                trades.add(trade);
-                buyOrderIds.add(tradeEvent.getBuyOrderId());
-                sellOrderIds.add(tradeEvent.getSellOrderId());
             }
 
-            log.info("📝 PREPARING BATCH SETTLEMENT:");
-            log.info("Batch ID: {}", batchId);
-            log.info("Trades Count: {}", trades.size());
-            for (int i = 0; i < trades.size(); i++) {
-                log.info("  Trade #{}: Buyer={} Seller={} Token={} Amt={} Val={}",
-                        i, trades.get(i).getBuyer(), trades.get(i).getSeller(),
-                        trades.get(i).getCreditTokenId(), trades.get(i).getCreditAmount(),
-                        trades.get(i).getTotalValue());
-                log.info("  BuyOrder: {}", buyOrderIds.get(i));
-                log.info("  SellOrder: {}", sellOrderIds.get(i));
+            // 2. Xử lý các lệnh lỗi (Hoàn tiền ngay)
+            if (!invalidEvents.isEmpty()) {
+                handleFailedBatch(invalidEvents, "Validation Failed");
+            }
+
+            if (trades.isEmpty()) {
+                log.warn("⚠️ No valid trades to send.");
+                return;
             }
 
             // Call smart contract batch settlement
-            TransactionReceipt receipt = contractService.processBatchSettlement(BigInteger.valueOf(batchId), trades, buyOrderIds, sellOrderIds);
+            TransactionReceipt receipt = contractService.processBatchSettlement(BigInteger.valueOf(batchId), trades,
+                    buyOrderIds, sellOrderIds);
             String txHash = receipt.getTransactionHash();
 
-            log.info("✅ Batch {} settled on-chain with {} trades", batchId, batchQueue.size());
-
-            saveSettledTradesToDB(batchQueue, txHash);
-
-            batchQueue.clear();
+            // ✅ UPDATE DATABASE: Save Trade + Update Order Status (Atomic)
+            saveSettledTradesToDB(validEvents, txHash);
 
         } catch (Exception e) {
             log.error("❌ Failed to settle batch {}: {}", batchId, e.getMessage(), e);
-            handleFailedBatch(batchQueue, e.getMessage());
-            batchQueue.clear();
+            if (!validEvents.isEmpty()) {
+                handleFailedBatch(validEvents, "On-Chain Transaction Failed: " + e.getMessage());
+            }
         }
 
     }
@@ -139,6 +151,7 @@ public class SettlementService {
         List<Order> ordersToUpdate = new ArrayList<>();
 
         for (TradeEventDTO event : tradeEvents) {
+            // 1. Save Trade History
             Trade trade = Trade.builder()
                     .id(event.getTradeId())
                     .buyOrderId(event.getBuyOrderId())
@@ -153,15 +166,15 @@ public class SettlementService {
                     .build();
             tradesToSave.add(trade);
 
-            // B. Cập nhật trạng thái Order gốc thành SETTLED (hoặc FILLED)
-            // Tùy logic: FILLED là khớp xong, SETTLED là tiền đã trao cháo đã múc
+            // 2. Update Buy Order
             orderRepository.findById(event.getBuyOrderId()).ifPresent(order -> {
-                order.setStatus("SETTLED");
+                updateOrderState(order, event.getAmount());
                 ordersToUpdate.add(order);
             });
 
+            // 3. Update Sell Order
             orderRepository.findById(event.getSellOrderId()).ifPresent(order -> {
-                order.setStatus("SETTLED");
+                updateOrderState(order, event.getAmount());
                 ordersToUpdate.add(order);
             });
         }
@@ -169,6 +182,19 @@ public class SettlementService {
         tradeRepository.saveAll(tradesToSave);
         orderRepository.saveAll(ordersToUpdate);
         log.info("💾 DB Updated: {} Trades Settled, {} Orders Updated", tradesToSave.size(), ordersToUpdate.size());
+    }
+
+    private void updateOrderState(Order order, int tradeAmount) {
+        int newRemaining = order.getRemainingAmount() - tradeAmount;
+        order.setRemainingAmount(Math.max(0, newRemaining));
+
+        if (order.getRemainingAmount() == 0) {
+            order.setStatus("SETTLEMENT");
+            log.info("   ✅ Order {} -> SETTLEMENT", order.getId());
+        } else {
+            order.setStatus("PARTIALLY_FILLED");
+            log.info("   🔄 Order {} -> Remaining: {}", order.getId(), newRemaining);
+        }
     }
 
     private void handleFailedBatch(List<TradeEventDTO> failedTrades, String errorReason) {
@@ -179,11 +205,11 @@ public class SettlementService {
 
             // 1. Mở khóa Lệnh Mua (Trả tiền Native lại cho Buyer)
             unlockOrderOnChain(trade.getBuyOrderId());
-            updateOrderStatusToFailed(trade.getBuyOrderId(), "SETTLEMENT_FAILED");
+            updateOrderStatusToFailed(trade.getBuyOrderId(), errorReason);
 
             // 2. Mở khóa Lệnh Bán (Trả Tín chỉ lại cho Seller)
             unlockOrderOnChain(trade.getSellOrderId());
-            updateOrderStatusToFailed(trade.getSellOrderId(), "SETTLEMENT_FAILED");
+            updateOrderStatusToFailed(trade.getSellOrderId(), errorReason);
         }
     }
 
@@ -206,9 +232,7 @@ public class SettlementService {
                     order.getUserId(),
                     order.getId(),
                     order.getCreditId(),
-                    "Settlement transaction failed on Blockchain. Funds unlocked."
-            );
-
+                    "Settlement transaction failed on Blockchain:" + reason);
         });
     }
 }

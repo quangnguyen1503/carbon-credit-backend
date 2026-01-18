@@ -4,10 +4,9 @@ import com.example.carbon_credit.DTO.BlockchainEventDTO;
 import com.example.carbon_credit.DTO.PlaceOrderCommandDTO;
 import com.example.carbon_credit.DTO.TradeEventDTO;
 import com.example.carbon_credit.MatchingEngine.MatchingEngine;
-import com.example.carbon_credit.Service.PersistenceService;
-import com.example.carbon_credit.Service.SettlementService;
-import com.example.carbon_credit.Service.WsService;
-import com.example.carbon_credit.Service.WalletService;
+import com.example.carbon_credit.Service.*;
+import com.example.carbon_credit.Repository.OrderRepository;
+import com.example.carbon_credit.Entity.Order;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -18,7 +17,6 @@ import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 
@@ -33,8 +31,11 @@ public class KafkaConsumerService {
     private final SettlementService settlementService;
     private final PersistenceService persistenceService;
     private final WalletService walletService;
+    private final CertificateService certificateService;
+    private final OrderRepository orderRepository;
+    private final OhlcService ohlcService;
 
-    private static final int MAX_RETRY_ATTEMPTS = 3;
+    private static final int MAX_RETRY_ATTEMPTS = 5;
     private static final long RETRY_DELAY_MS = 100;
 
     /**
@@ -42,13 +43,11 @@ public class KafkaConsumerService {
      * Quan trọng: concurrency phải <= số partitions của topic 'orders'
      */
     @KafkaListener(topics = "orders", groupId = "carbon-matching-group", // Tách riêng group cho matching
-            concurrency = "3", containerFactory = "kafkaListenerContainerFactory" // Cần config factory có ackMode =
-                                                                                  // MANUAL_IMMEDIATE
-    )
+            concurrency = "3", containerFactory = "kafkaListenerContainerFactory")
     public void consumeOrder(PlaceOrderCommandDTO command,
             Acknowledgment ack,
             @Header(KafkaHeaders.RECEIVED_PARTITION) int partition,
-            @Header(KafkaHeaders.OFFSET) long offset) {
+            @Header(KafkaHeaders.OFFSET) long offset) throws Exception {
 
         long startTime = System.nanoTime();
 
@@ -61,21 +60,27 @@ public class KafkaConsumerService {
                 throw new IllegalArgumentException("Price or Amount is invalid");
             }
 
+            // 0. CHECK STATUS (Race Condition Guard)
+            Order order = orderRepository.findById(command.getOrderId()).orElse(null);
+            if (order != null && "CANCELLED".equals(order.getStatus())) {
+                log.warn("🛑 Skipping order {} (Status: CANCELLED)", command.getOrderId());
+                ack.acknowledge();
+                return;
+            }
+
             // 1. GỌI MATCHING ENGINE (In-Memory)
             List<TradeEventDTO> trades = matchingEngine.processOrder(command);
 
             // 2. Xử lý kết quả khớp
             if (trades != null && !trades.isEmpty()) {
                 log.info(" Matched {} trades for order {}", trades.size(), command.getOrderId());
-                // Gửi trades đi để các service khác xử lý (Async)
-                kafkaProducerService.sendTrades(trades);
+                // CRITICAL: Send sync to ensure trades are persisted before ack
+                kafkaProducerService.sendTradesSync(trades);
             } else {
                 log.info(" Order {} added to OrderBook (No match)", command.getOrderId());
             }
 
             // 3. Cập nhật UI (OrderBook Snapshot)
-            // Lưu ý: Có thể đẩy việc này ra một topic riêng 'market-data' để giảm tải cho
-            // thread matching
             broadcastOrderBookChange(command.getCreditId());
 
             // 4. Commit offset khi mọi thứ thành công
@@ -88,8 +93,6 @@ public class KafkaConsumerService {
         } catch (Exception e) {
             log.error("CRITICAL ERROR processing order {}: {}", command.getOrderId(), e.getMessage(), e);
             throw e;
-        } finally {
-            ack.acknowledge();
         }
     }
 
@@ -111,6 +114,7 @@ public class KafkaConsumerService {
             // 3. Thông báo Realtime (WebSocket)
             try {
                 wsService.broadcastTrade(trade);
+                ohlcService.updateOhlcFromTrade(trade.getCreditId(), trade.getPrice(), trade.getAmount());
                 wsService.broadcastPriceUpdate(trade.getCreditId(), trade.getPrice(), trade.getAmount());
             } catch (Exception wsEx) {
                 log.warn("WebSocket broadcast failed for trade {}: {}", trade.getTradeId(), wsEx.getMessage());
@@ -125,40 +129,36 @@ public class KafkaConsumerService {
         }
     }
 
-    @KafkaListener(
-        topics = "blockchain-events",
-        groupId = "${spring.kafka.consumer.group-id}",
-        containerFactory = "kafkaListenerContainerFactory"
-    )
+    @KafkaListener(topics = "onchain-events", groupId = "carbon-market-group", containerFactory = "kafkaListenerContainerFactory")
     public void consumeBlockchainEvent(BlockchainEventDTO event, Acknowledgment ack) {
-        
+
         int attempt = 0;
         boolean success = false;
-        
+
         while (attempt < MAX_RETRY_ATTEMPTS && !success) {
             try {
                 attempt++;
-                
-                log.info("📨 Received event: {} | TxHash: {} (Attempt {}/{})", 
-                    event.getEventType(), 
-                    event.getTransactionHash(),
-                    attempt,
-                    MAX_RETRY_ATTEMPTS);
+
+                log.info("📨 Received event: {} | TxHash: {} (Attempt {}/{})",
+                        event.getEventType(),
+                        event.getTransactionHash(),
+                        attempt,
+                        MAX_RETRY_ATTEMPTS);
 
                 processEvent(event);
-                
+
                 success = true;
-                
+
                 if (ack != null) {
                     ack.acknowledge();
                 }
-                
+
                 log.info("✅ Successfully processed event: {}", event.getTransactionHash());
-                
+
             } catch (ObjectOptimisticLockingFailureException e) {
-                log.warn("⚠️ Optimistic locking conflict (attempt {}/{}): {}", 
-                    attempt, MAX_RETRY_ATTEMPTS, e.getMessage());
-                
+                log.warn("⚠️ Optimistic locking conflict (attempt {}/{}): {}",
+                        attempt, MAX_RETRY_ATTEMPTS, e.getMessage());
+
                 if (attempt < MAX_RETRY_ATTEMPTS) {
                     try {
                         Thread.sleep(RETRY_DELAY_MS * attempt); // Exponential backoff
@@ -175,13 +175,13 @@ public class KafkaConsumerService {
                         ack.acknowledge(); // Acknowledge to prevent infinite retry
                     }
                 }
-                
+
             } catch (Exception e) {
-                log.error("❌ Failed to process event {}: {}", 
-                    event.getTransactionHash(), 
-                    e.getMessage(), 
-                    e);
-                
+                log.error("❌ Failed to process event {}: {}",
+                        event.getTransactionHash(),
+                        e.getMessage(),
+                        e);
+
                 if (ack != null) {
                     ack.acknowledge(); // Acknowledge to prevent stuck message
                 }
@@ -195,41 +195,38 @@ public class KafkaConsumerService {
         String eventType = event.getEventType();
 
         switch (eventType) {
-            case "ADMIN_ADDED" -> {
-                walletService.handleAdminAdded(event);
-            }
-            case "ADMIN_REMOVED" -> {
-                walletService.handleAdminRemoved(event);
-            }
-            case "GOVERNMENT_ADDED" -> {
-                walletService.handleGovernmentAdded(event);
-            }
-            case "GOVERNMENT_REMOVED" -> {
-                walletService.handleGovernmentRemoved(event);
-            }
-            case "ORGANIZATION_VERIFIED" -> {
-                walletService.handleVerifierAdded(event);
-            }
-            case "ORGANIZATION_REVOKED" -> {
-                walletService.handleVerifierRemoved(event);
-            }
-            case "PROJECT_APPROVED" -> {
-                walletService.handleProjectApproved(event);
-            }
-            case "PROJECT_APPROVED" -> {
-                walletService.handleProjectRevolked(event);
-            }
-            case "CREDIT_MINTED" -> {
-                walletService.handleCreditMinted(event);
-            }
-            case "CREDIT_RETIRED" -> {
-                walletService.handleCreditRetired(event);
-            }
-            case "CERTIFICATE_MINTED" -> {
-                walletService.handleCertificateMinted(event);
-            }
+            // case "ADMIN_ADDED" -> {
+            // walletService.handleAdminAdded(event);
+            // }
+            // case "ADMIN_REMOVED" -> {
+            // walletService.handleAdminRemoved(event);
+            // }
+            // case "GOVERNMENT_ADDED" -> {
+            // walletService.handleGovernmentAdded(event);
+            // }
+            // case "GOVERNMENT_REMOVED" -> {
+            // walletService.handleGovernmentRemoved(event);
+            // }
+            // case "ORGANIZATION_VERIFIED" -> {
+            // walletService.handleVerifierAdded(event);
+            // }
+            // case "ORGANIZATION_REVOKED" -> {
+            // walletService.handleVerifierRemoved(event);
+            // }
+            // case "PROJECT_APPROVED" -> {
+            // walletService.handleProjectApproved(event);
+            // }
+            // case "PROJECT_REVOLKED" -> {
+            // walletService.handleProjectRevolked(event);
+            // }
+            // case "CREDIT_MINTED" -> {
+            // walletService.handleCreditMinted(event);
+            // }
+            // case "CERTIFICATE_MINTED" -> {
+            // certificateService.handleCertificateMinted(event);
+            // }
             case "BATCH_CERTIFICATE_RETIRED" -> {
-                walletService.handleBatchCeritificateRetired(event);
+                certificateService.handleBatchCeritificateRetired(event);
             }
             case "NATIVE_DEPOSITED" -> {
                 walletService.handleNativeDeposited(event);
@@ -237,11 +234,17 @@ public class KafkaConsumerService {
             case "NATIVE_WITHDRAWN" -> {
                 walletService.handleNativeWithdraw(event);
             }
-            case "CREDIT_DEPOSIT" -> {
+            case "CREDIT_DEPOSITED" -> {
                 walletService.handleCreditDeposited(event);
             }
             case "CREDIT_WITHDRAWN" -> {
                 walletService.handleCreditWithdraw(event);
+            }
+            case "BALANCE_LOCKED" -> {
+                walletService.handleBalanceLocked(event);
+            }
+            case "BALANCE_UNLOCKED" -> {
+                walletService.handleBalanceUnlocked(event);
             }
             case "TRADE_SETTLED" -> {
                 walletService.handleTradeSettled(event);

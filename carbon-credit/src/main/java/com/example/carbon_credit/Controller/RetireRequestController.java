@@ -54,27 +54,27 @@ public class RetireRequestController {
 //        }
 //    }
 
-    @PutMapping("/approved-request/{requestId}")
-    public ResponseEntity<?> approvedRequest(@PathVariable String CertificateId, Principal principal) {  // Sửa @PathVariable
-        try {
-            Certificate result = certificateService.approveCertificate(CertificateId, principal.getName());
-            return ResponseEntity.ok(result);
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body("Error: " + e.getMessage());
-        }
-    }
+//    @PutMapping("/approved-request/{requestId}")
+//    public ResponseEntity<?> approvedRequest(@PathVariable String CertificateId, Principal principal) {  // Sửa @PathVariable
+//        try {
+//            Certificate result = certificateService.approveCertificate(CertificateId, principal.getName());
+//            return ResponseEntity.ok(result);
+//        } catch (RuntimeException e) {
+//            return ResponseEntity.badRequest().body("Error: " + e.getMessage());
+//        }
+//    }
 
-    @PutMapping("/confirm-onchain/{requestId}")
-    public ResponseEntity<?> confirmOnchainRequest(@PathVariable String requestId,  // Sửa @PathVariable
-                                                   @RequestParam String txHash,
-                                                   @RequestParam String nftTokenId) {  // Sửa @RequestParam
-        try {
-            Certificate result = certificateService.comfirmOnChain(requestId, txHash, nftTokenId);
-            return ResponseEntity.ok(result);
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body("Error: " + e.getMessage());
-        }
-    }
+//    @PutMapping("/confirm-onchain/{requestId}")
+//    public ResponseEntity<?> confirmOnchainRequest(@PathVariable String requestId,  // Sửa @PathVariable
+//                                                   @RequestParam String txHash,
+//                                                   @RequestParam String nftTokenId) {  // Sửa @RequestParam
+//        try {
+//            Certificate result = certificateService.comfirmOnChain(requestId, txHash, nftTokenId);
+//            return ResponseEntity.ok(result);
+//        } catch (RuntimeException e) {
+//            return ResponseEntity.badRequest().body("Error: " + e.getMessage());
+//        }
+//    }
 
 
 }

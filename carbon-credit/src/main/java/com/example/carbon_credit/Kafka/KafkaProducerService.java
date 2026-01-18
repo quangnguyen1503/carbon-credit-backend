@@ -27,25 +27,38 @@ public class KafkaProducerService {
 
         future.whenComplete((result, ex) -> {
             if (ex == null) {
-                log.debug("Order sent: {} -> Partition: {}", command.getOrderId(), result.getRecordMetadata().partition());
+                log.debug("Order sent: {} -> Partition: {}", command.getOrderId(),
+                        result.getRecordMetadata().partition());
             } else {
                 // Đây là lỗi nghiêm trọng: Lệnh không vào được hàng đợi
                 log.error(" FAILED to send order {}: {}", command.getOrderId(), ex.getMessage());
-                // Cần có cơ chế fallback hoặc alert ở đây (ví dụ: trả lỗi 500 ngay cho user nếu đang trong request sync)
             }
         });
     }
 
     public void sendTrades(List<TradeEventDTO> trades) {
         for (TradeEventDTO trade : trades) {
-            // Key vẫn là creditId để đảm bảo các trade của cùng 1 cặp được xử lý tuần tự nếu cần
             kafkaTemplate.send("trades", trade.getCreditId(), trade)
                     .whenComplete((result, ex) -> {
                         if (ex != null) {
                             log.error(" FAILED to send trade {}: {}", trade.getTradeId(), ex.getMessage());
-                            // TODO: Lưu trade này vào file/DB tạm để retry thủ công (Emergency Persistence)
                         }
                     });
+        }
+    }
+
+    /**
+     * Send trades synchronously (blocking) to ensure data durability calls.
+     */
+    public void sendTradesSync(List<TradeEventDTO> trades) throws Exception {
+        for (TradeEventDTO trade : trades) {
+            try {
+                // .get() blocks until completion, throwing exception if failed
+                kafkaTemplate.send("trades", trade.getCreditId(), trade).get();
+            } catch (Exception e) {
+                log.error("❌ FAILED to send trade sync {}: {}", trade.getTradeId(), e.getMessage());
+                throw e; // Propagate to retry entire batch/order
+            }
         }
     }
 

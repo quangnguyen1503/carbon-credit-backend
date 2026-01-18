@@ -29,13 +29,13 @@ public class Trade {
     @Column(name = "credit_id", length = 255)
     private String creditId;
 
-    @Column(name = "price", precision = 10, scale = 0, nullable = false)
+    @Column(name = "price", precision = 10, scale = 9, nullable = false)
     private BigDecimal price;  // decimal(10,0)
 
     @Column(name = "amount", nullable = false)
     private Integer amount;  // int(11)
 
-    @Column(name = "total_value", precision = 10, scale = 0, nullable = false)
+    @Column(name = "total_value", precision = 10, scale = 9, nullable = false)
     private BigDecimal totalValue;  // decimal(10,0)
 
     @Column(name = "tx_hash", length = 255, nullable = true)
