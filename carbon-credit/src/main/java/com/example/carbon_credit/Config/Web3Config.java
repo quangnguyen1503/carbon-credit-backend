@@ -25,11 +25,11 @@ public class Web3Config {
 
         try {
             Web3j web3j = Web3j.build(new HttpService(rpcUrl));
-            
+
             // Test connection
             String clientVersion = web3j.web3ClientVersion().send().getWeb3ClientVersion();
             log.info("✅ Connected to: {}", clientVersion);
-            
+
             return web3j;
         } catch (Exception e) {
             log.error("❌ Failed to connect to blockchain: {}", e.getMessage());

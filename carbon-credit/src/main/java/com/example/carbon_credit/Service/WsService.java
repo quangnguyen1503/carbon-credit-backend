@@ -3,6 +3,8 @@ package com.example.carbon_credit.Service;
 import com.example.carbon_credit.DTO.OrderNotificationDTO;
 import com.example.carbon_credit.DTO.TradeEventDTO;
 import com.example.carbon_credit.DTO.OrderBookUpdateDTO;
+import com.example.carbon_credit.Entity.Notification;
+import com.example.carbon_credit.Repository.NotificationRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -126,6 +128,39 @@ public class WsService {
             log.error("Failed to send WS notification: {}", e.getMessage());
         }
     }
+    // Inject NotificationRepository vào WsService
+    private final NotificationRepository notificationRepository;
+
+    public void notify(String title, String message, String type, List<String> roles, String wallet) {
+        // 1. Lưu DB (giữ nguyên, lưu single role chính nếu cần; hoặc mở rộng targetRole thành List nếu DB hỗ trợ)
+        // Giả sử lưu role đầu tiên làm đại diện, hoặc null nếu multi-role
+        String primaryRole = (roles != null && !roles.isEmpty()) ? roles.get(0) : null;
+        Notification note = notificationRepository.save(Notification.builder()
+                .title(title).message(message).type(type)
+                .targetRole(primaryRole)  // Lưu role chính (có thể null nếu multi)
+                .recipient(wallet)
+                .createdAt(LocalDateTime.now()).build());
+
+        // 2. Phân luồng gửi WebSocket
+        if (wallet != null) {
+            // Gửi riêng cá nhân: /topic/private/0xabc...
+            messagingTemplate.convertAndSend("/topic/private/" + wallet.toLowerCase(), note);
+        } else if (roles != null && !roles.isEmpty()) {
+            // Fix: Gửi cho NHỀU role - loop qua từng role
+            for (String role : roles) {
+                if (role != null && !role.trim().isEmpty()) {
+                    messagingTemplate.convertAndSend("/topic/role/" + role.toUpperCase(), note);
+                }
+            }
+        } else {
+            // Gửi toàn sàn
+            messagingTemplate.convertAndSend("/topic/public", note);
+        }
+    }
+
+
+
+
 
     /**
      * Gửi thông báo hủy lệnh thành công cho user

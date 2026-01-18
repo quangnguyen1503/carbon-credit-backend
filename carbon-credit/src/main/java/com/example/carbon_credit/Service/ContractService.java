@@ -140,6 +140,7 @@ public class ContractService {
             boolean isCreditToken) throws Exception {
         Credentials credentials = Credentials.create(settlementOperatorPrivateKey);
 
+
         TransactionReceiptProcessor receiptProcessor = new PollingTransactionReceiptProcessor(
                 web3j,
                 3000, // Poll every 3 seconds

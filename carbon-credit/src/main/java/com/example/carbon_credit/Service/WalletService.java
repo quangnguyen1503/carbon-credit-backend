@@ -38,6 +38,7 @@ public class WalletService {
     private final OrderRepository orderRepository;
     private final CreditHistoryRepository creditHistoryRepository;
     private final ProcessedTransactionRepository processedTransactionRepository;
+    private final WsService wsService;
     private final ConcurrentHashMap<String, Object> walletLocks = new ConcurrentHashMap<>();
 
     public List<MyCreditResponse> getMyCredits(String walletAddress) {
@@ -89,6 +90,12 @@ public class WalletService {
                 wallet.setUpdatedAt(LocalDateTime.now());
                 walletRepository.save(wallet);
 
+                wsService.notify(
+                        "Nạp tiền thành công! ✅",
+                        "Bạn vừa nạp " + amountInEther + " ETH vào sàn giao dịch.",
+                        "SUCCESS", null, userAddress
+                );
+
                 ProcessedTransaction processedTx = ProcessedTransaction.builder()
                         .txHash(event.getTransactionHash())
                         .eventType(event.getEventType())
@@ -103,6 +110,7 @@ public class WalletService {
             log.error("❌ Error handling NATIVE_DEPOSITED: {}", e.getMessage(), e);
             throw e;
         }
+
     }
 
     @Transactional
@@ -148,6 +156,12 @@ public class WalletService {
                         .processedAt(LocalDateTime.now())
                         .build();
                 processedTransactionRepository.save(processedTx);
+
+                wsService.notify(
+                        "Rút tiền thành công! ✅",
+                        "Bạn vừa rút " + amountInEther + " ETH vào sàn giao dịch.",
+                        "SUCCESS", null, userAddress
+                );
 
                 log.info("✅ Updated wallet {} | New balance: {} POL", userAddress, newBalance);
             }
@@ -224,6 +238,12 @@ public class WalletService {
                         .build();
                 processedTransactionRepository.save(processedTx);
 
+                wsService.notify(
+                        "Nạp Credit thành công! ✅",
+                        "Bạn vừa nạp " + amount + " credit vào sàn giao dịch.",
+                        "SUCCESS", null, userAddress
+                );
+
                 log.info("✅ Updated credit | Address: {} | Token: {} | Balance: {}", userAddress, creditTokenId, newBalance);
             }
 
@@ -278,6 +298,12 @@ public class WalletService {
                 processedTransactionRepository.save(processedTx);
 
                 log.info("✅ Updated credit | Address: {} | Token: {} | Balance: {}", userAddress, creditTokenId, newBalance);
+
+                wsService.notify(
+                        "Rút credit thành công! ✅",
+                        "Bạn vừa rút " + amount + " credit từ sàn giao dịch.",
+                        "SUCCESS", null, userAddress
+                );
             }
 
         } catch (Exception e) {
@@ -595,6 +621,37 @@ public class WalletService {
             processedTransactionRepository.save(processedTx);
 
             log.info("✅ Trade Settled & History Saved Successfully");
+
+            try {
+                // Tính toán giá trị ETH để hiển thị trong tin nhắn
+                BigDecimal valueInEth = new BigDecimal(totalValueWei)
+                        .divide(new BigDecimal("1000000000000000000"), 6, RoundingMode.HALF_UP);
+
+                // --- THÔNG BÁO CHO NGƯỜI MUA ---
+                wsService.notify(
+                        "Khớp lệnh mua thành công! 🛒",
+                        String.format("Bạn đã nhận được %s tín chỉ carbon. Tổng chi phí: %s ETH.",
+                                creditAmount, valueInEth.stripTrailingZeros().toPlainString()),
+                        "SUCCESS",
+                        null,
+                        buyerAddress
+                );
+
+                // --- THÔNG BÁO CHO NGƯỜI BÁN ---
+                wsService.notify(
+                        "Lệnh bán đã khớp! 💰",
+                        String.format("Bạn đã bán thành công %s tín chỉ carbon. Tài khoản đã cộng: %s ETH.",
+                                creditAmount, valueInEth.stripTrailingZeros().toPlainString()),
+                        "SUCCESS",
+                        null,
+                        sellerAddress
+                );
+
+                log.info("🔔 Sent trade settlement notifications to Buyer and Seller.");
+            } catch (Exception notifyEx) {
+                // Log lỗi thông báo nhưng không làm rollback giao dịch tiền tệ
+                log.warn("⚠️ Could not send trade notifications: {}", notifyEx.getMessage());
+            }
 
         } catch (Exception e) {
             log.error("❌ Error handling TRADE_SETTLED: {}", e.getMessage(), e);

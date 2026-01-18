@@ -17,7 +17,9 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
 @Service
@@ -148,40 +150,34 @@ public class SettlementService {
     @Transactional
     protected void saveSettledTradesToDB(List<TradeEventDTO> tradeEvents, String txHash) {
         List<Trade> tradesToSave = new ArrayList<>();
-        List<Order> ordersToUpdate = new ArrayList<>();
+        // Dùng Map để đảm bảo nếu 1 Order khớp nhiều lần trong 1 batch, chúng ta không bị ghi đè dữ liệu cũ
+        Map<String, Order> ordersMap = new HashMap<>();
 
         for (TradeEventDTO event : tradeEvents) {
             // 1. Save Trade History
             Trade trade = Trade.builder()
-                    .id(event.getTradeId())
-                    .buyOrderId(event.getBuyOrderId())
-                    .sellOrderId(event.getSellOrderId())
+                    .id(event.getTradeId()).buyOrderId(event.getBuyOrderId()).sellOrderId(event.getSellOrderId())
                     .creditId(event.getCreditId())
                     .amount(event.getAmount())
                     .price(event.getPrice())
-                    .totalValue(event.getTotalValue())
-                    .txHash(txHash)
-                    .tradeAt(LocalDateTime.now())
-                    .status("SETTLED")
+                    .totalValue(event.getTotalValue()).txHash(txHash).tradeAt(LocalDateTime.now()).status("SETTLED")
                     .build();
             tradesToSave.add(trade);
 
             // 2. Update Buy Order
             orderRepository.findById(event.getBuyOrderId()).ifPresent(order -> {
                 updateOrderState(order, event.getAmount());
-                ordersToUpdate.add(order);
             });
 
             // 3. Update Sell Order
             orderRepository.findById(event.getSellOrderId()).ifPresent(order -> {
                 updateOrderState(order, event.getAmount());
-                ordersToUpdate.add(order);
             });
         }
 
         tradeRepository.saveAll(tradesToSave);
-        orderRepository.saveAll(ordersToUpdate);
-        log.info("💾 DB Updated: {} Trades Settled, {} Orders Updated", tradesToSave.size(), ordersToUpdate.size());
+        orderRepository.saveAll(ordersMap.values()); // Lưu tất cả các order đã update
+        log.info("💾 DB Updated: {} Trades Settled", tradesToSave.size());
     }
 
     private void updateOrderState(Order order, int tradeAmount) {
@@ -232,7 +228,8 @@ public class SettlementService {
                     order.getUserId(),
                     order.getId(),
                     order.getCreditId(),
-                    "Settlement transaction failed on Blockchain:" + reason);
+                    "Settlement transaction failed on Blockchain. Funds unlocked." + reason
+            );
         });
     }
 }

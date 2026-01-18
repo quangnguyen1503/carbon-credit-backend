@@ -18,7 +18,6 @@ public interface ProjectService {
 
     List<ProjectResponse> getMyProject(String userId);
 
-
     Project getProject(String id);
     Project VerifyProject(String id, VerifyRequestDTO req, String VerifyName);
 

@@ -14,7 +14,13 @@ public interface OrderRepository extends JpaRepository<Order, String> {
 
     List<Order> findByUserIdAndStatus(String userId, String status);
 
+
+    List<Order> findByOrderTypeAndStatusOrderByPriceDesc(String orderType, String status);
+
+    List<Order> findByOrderTypeAndStatusOrderByPriceAsc(String orderType, String status);
+
     List<Order> findByCreditIdAndStatus(String creditId, String status);
+
 
     List<Order> findByUserIdAndCreditId(String userId, String creditId);
 

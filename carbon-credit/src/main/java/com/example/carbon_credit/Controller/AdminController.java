@@ -17,6 +17,8 @@ public class AdminController {
     @Autowired
     private UserService userService;
 
+
+
     @PostMapping("/{id}/set-role")  // Sửa path rõ nghĩa, fix lỗi chính tả
     public ResponseEntity<?> setUserRole(
             @PathVariable String id,
@@ -27,4 +29,6 @@ public class AdminController {
         User result = userService.setRole(id, req);  // Truyền roleId trực tiếp
         return ResponseEntity.ok(result);
     }
+
+
 }

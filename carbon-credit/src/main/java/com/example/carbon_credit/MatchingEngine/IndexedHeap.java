@@ -86,7 +86,7 @@ public class IndexedHeap<T extends Comparable<T>> implements Iterable<T> {
         }
 
         int lastIndex = heap.size() - 1;
-        
+
         if (index == lastIndex) {
             T item = heap.remove(lastIndex);
             indexMap.remove(item);
@@ -124,7 +124,7 @@ public class IndexedHeap<T extends Comparable<T>> implements Iterable<T> {
     private void heapifyUp(int index) {
         while (index > 0) {
             int parentIndex = (index - 1) / 2;
-            
+
             if (compare(heap.get(index), heap.get(parentIndex)) <= 0) {
                 break;
             }
@@ -260,4 +260,7 @@ public class IndexedHeap<T extends Comparable<T>> implements Iterable<T> {
                 '}';
     }
 
+
 }
+
+

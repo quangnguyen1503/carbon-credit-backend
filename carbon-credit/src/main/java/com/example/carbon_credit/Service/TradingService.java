@@ -125,8 +125,8 @@ public class TradingService {
 
             order.setStatus("OPEN");
             orderRepository.save(order);
+
         } catch (Exception e) {
-            // Rollback: Update order status to FAILED
             order.setStatus("FAILED");
             order.setUpdatedAt(LocalDateTime.now());
             orderRepository.save(order);
@@ -148,6 +148,18 @@ public class TradingService {
 
         // Gửi vào Kafka (bất đồng bộ)
         kafkaProducerService.sendOrder(command);
+
+        // Giả sử wsService.notify(title, message, type, role, wallet)
+        wsService.notify(
+                String.format("Đặt %s thành công", order.getOrderType()),  // Title: "Đặt BUY thành công" (hoặc SELL)
+                String.format("Đặt %s với giá: %s và số lượng %s.",
+                        order.getOrderType(),
+                        order.getPrice(),
+                        order.getAmount()),  // Message: "Đặt BUY với giá: 1000 và số lượng 5."
+                "SUCCESS",  // Type
+                null,       // Role (null nếu gửi cá nhân)
+                request.getUserId()  // Wallet/Recipient
+        );
 
         log.info("📤 Order {} sent to matching engine", order.getId());
         return order;
@@ -184,6 +196,16 @@ public class TradingService {
 
         log.warn("❌ Failed to cancel order {}", order.getId());
         // ... (existing cancelOrder method remains same)
+        wsService.notify(
+                String.format("Hủy %s thành công", order.getOrderType()),  // Title: "Hủy BUY thành công" (hoặc SELL)
+                String.format("Bạn đã hủy %s với giá: %s và số lượng %s.",
+                        order.getOrderType(),
+                        order.getPrice(),
+                        order.getAmount()),  // Message: "Bạn đã hủy BUY với giá: 1000 và số lượng 5."
+                "WARNING",  // Type: WARNING để phân biệt (có thể dùng INFO nếu nhẹ hơn)
+                null,       // Role (null nếu gửi cá nhân)
+                order.getUserId()      // Wallet/Recipient (từ request hoặc order.getUserId())
+        );
         return false;
     }
 

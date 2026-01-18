@@ -26,6 +26,10 @@ public class AuthService {
     private final UserRepository userRepository;
     private final SignatureVerifierService signatureVerifierService;
 
+    @Value("${app.super-admin-wallet}")
+    private String superAdminWallet;
+
+
     @Autowired
     public AuthService(UserRepository userRepository, SignatureVerifierService signatureVerifierService) {
         this.userRepository = userRepository;
@@ -46,22 +50,24 @@ public class AuthService {
             throw new RuntimeException("Chữ ký không hợp lệ - địa chỉ không khớp!");
         }
 
+
+
         // Bước 2: Tìm hoặc tạo user theo address
         Optional<User> optionalUser = userRepository.findById(address);
-        User user;
+        User user = new User();;
         if (optionalUser.isPresent()) {
             user = optionalUser.get();
-//            // Update last_login nếu cần
-//            user.setLastLogin(new Date());
         } else {
-            // Tạo user mới với role mặc định "USER"
-            user = new User();
+            if (recoveredAddress.equalsIgnoreCase(superAdminWallet)) {
+                user.setRoleId("ADMIN");
+            }else {
+                user.setRoleId("USER");
+            }
             user.setId(address);  // Giả sử id là String, nếu Long thì parse hoặc dùng UUID
             user.setName("User " + address.substring(2, 10).toUpperCase());  // Default name từ address
-            user.setEmail("");  // Optional, có thể yêu cầu update sau
-            user.setDocumentHash("");
-            user.setRoleId("USER");  // Hoặc set role_id = 2 nếu dùng FK (String cho linh hoạt)
-            user.setVerifierRoleId("");
+            user.setEmail(null);  // Optional, có thể yêu cầu update sau
+            user.setDocumentHash(null);
+            user.setVerifierRoleId(null);
             user.setCreatedAt(LocalDateTime.now());  // Sửa typo: createAt → createdAt nếu entity có field này
             user = userRepository.save(user);
         }

@@ -7,15 +7,18 @@ import org.web3j.abi.TypeDecoder;
 import org.web3j.abi.TypeReference;
 import org.web3j.abi.datatypes.Address;
 import org.web3j.abi.datatypes.Type;
+import org.web3j.abi.datatypes.Utf8String;
 import org.web3j.abi.datatypes.generated.Uint256;
 
 import java.math.BigInteger;
+import java.util.Arrays;
 import java.util.List;
 
 @Slf4j
 public class BlockchainHelper {
 
-    private BlockchainHelper() {}
+    private BlockchainHelper() {
+    }
 
     // ==================== 1. EXTRACT TỪ TOPIC (INDEXED) ====================
 
@@ -56,6 +59,29 @@ public class BlockchainHelper {
             log.error("❌ Failed to extract uint256 from topic {}: {}", topicIndex, e.getMessage());
             return null;
         }
+    }
+
+    public static String extractStringFromData(BlockchainEventDTO event) {
+        try {
+            String data = event.getData();
+            if (data == null || data.length() < 2) return null;
+
+            // FIX: Cast về (TypeReference) để Java chấp nhận List<TypeReference<Type>>
+            // Bản chất: new TypeReference<Utf8String>() {} trả về TypeReference<Utf8String>
+            // Nhưng FunctionReturnDecoder cần TypeReference<Type>
+            @SuppressWarnings("rawtypes") TypeReference<Utf8String> typeRef = new TypeReference<Utf8String>() {
+            };
+
+            List<Type> decoded = FunctionReturnDecoder.decode(data, List.of((TypeReference<Type>) (Object) typeRef));
+
+            if (decoded != null && !decoded.isEmpty()) {
+                return (String) decoded.get(0).getValue();
+            }
+        } catch (Exception e) {
+            log.error("❌ Failed to extract string from data: {}", e.getMessage());
+            return null;
+        }
+        return null;
     }
 
     /**

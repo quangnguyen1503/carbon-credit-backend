@@ -75,6 +75,9 @@ public class SecurityConfig {
                         .requestMatchers("/api/projects/*").permitAll()
                         .requestMatchers("/api/wallet/my-credits").authenticated()
                         .requestMatchers("/api/wallet/my-natives").authenticated()
+                        .requestMatchers("/api/notifications/my-notifications").authenticated()
+                        .requestMatchers("/api/grafana/dashboards").permitAll()
+                        .requestMatchers("/api/admin/reports/monthly").permitAll()
 
 
 

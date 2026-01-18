@@ -134,12 +134,12 @@ public class OrderController {
     ) {
         try {
             String userId = authentication.getName();
-            
-            log.info("📋 Getting orders: userId={}, status={}, creditId={}", 
-                userId, status, creditId);
+
+            log.info("📋 Getting orders: userId={}, status={}, creditId={}",
+                    userId, status, creditId);
 
             List<Order> orders;
-            
+
             if (status != null && creditId != null) {
                 orders = orderService.getOrdersByUserIdAndStatusAndCreditId(userId, status, creditId);
             } else if (status != null) {
@@ -155,8 +155,8 @@ public class OrderController {
         } catch (Exception e) {
             log.error("❌ Failed to get orders: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
-                "error", "Internal Server Error",
-                "message", "Failed to retrieve orders"
+                    "error", "Internal Server Error",
+                    "message", "Failed to retrieve orders"
             ));
         }
     }
@@ -171,7 +171,7 @@ public class OrderController {
     ) {
         try {
             String userId = authentication.getName();
-            
+
             log.info("📋 Getting open orders: userId={}, creditId={}", userId, creditId);
 
             List<Order> orders = creditId != null
@@ -183,8 +183,8 @@ public class OrderController {
         } catch (Exception e) {
             log.error("❌ Failed to get open orders: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
-                "error", "Internal Server Error",
-                "message", "Failed to retrieve open orders"
+                    "error", "Internal Server Error",
+                    "message", "Failed to retrieve open orders"
             ));
         }
     }
@@ -207,8 +207,8 @@ public class OrderController {
             if (order == null) {
                 log.warn("⚠️ Order not found: {}", orderId);
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
-                    "error", "Not Found",
-                    "message", "Order not found"
+                        "error", "Not Found",
+                        "message", "Order not found"
                 ));
             }
 
@@ -216,8 +216,8 @@ public class OrderController {
             if (!order.getUserId().equals(userId)) {
                 log.warn("⚠️ Unauthorized cancel attempt: userId={}, orderId={}", userId, orderId);
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
-                    "error", "Forbidden",
-                    "message", "Not authorized to cancel this order"
+                        "error", "Forbidden",
+                        "message", "Not authorized to cancel this order"
                 ));
             }
 
@@ -225,8 +225,8 @@ public class OrderController {
             if (!"OPEN".equals(order.getStatus()) && !"PENDING".equals(order.getStatus())) {
                 log.warn("⚠️ Cannot cancel order with status: {}", order.getStatus());
                 return ResponseEntity.badRequest().body(Map.of(
-                    "error", "Bad Request",
-                    "message", "Order cannot be cancelled. Current status: " + order.getStatus()
+                        "error", "Bad Request",
+                        "message", "Order cannot be cancelled. Current status: " + order.getStatus()
                 ));
             }
 
@@ -236,22 +236,22 @@ public class OrderController {
             if (cancelled) {
                 log.info("✅ Order cancelled: orderId={}", orderId);
                 return ResponseEntity.ok(Map.of(
-                    "message", "Order cancelled successfully",
-                    "orderId", orderId
+                        "message", "Order cancelled successfully",
+                        "orderId", orderId
                 ));
             }
 
             log.error("❌ Failed to cancel order: orderId={}", orderId);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
-                "error", "Internal Server Error",
-                "message", "Failed to cancel order"
+                    "error", "Internal Server Error",
+                    "message", "Failed to cancel order"
             ));
 
         } catch (Exception e) {
             log.error("❌ Error cancelling order: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
-                "error", "Internal Server Error",
-                "message", "Failed to cancel order: " + e.getMessage()
+                    "error", "Internal Server Error",
+                    "message", "Failed to cancel order: " + e.getMessage()
             ));
         }
     }
@@ -266,23 +266,23 @@ public class OrderController {
     ) {
         try {
             String userId = authentication.getName();
-            
+
             log.info("🔍 Getting order: orderId={}, userId={}", orderId, userId);
 
             Order order = orderService.findById(orderId);
 
             if (order == null) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
-                    "error", "Not Found",
-                    "message", "Order not found"
+                        "error", "Not Found",
+                        "message", "Order not found"
                 ));
             }
 
             // Validate ownership
             if (!order.getUserId().equals(userId)) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
-                    "error", "Forbidden",
-                    "message", "Not authorized to view this order"
+                        "error", "Forbidden",
+                        "message", "Not authorized to view this order"
                 ));
             }
 
@@ -291,8 +291,8 @@ public class OrderController {
         } catch (Exception e) {
             log.error("❌ Failed to get order: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
-                "error", "Internal Server Error",
-                "message", "Failed to retrieve order"
+                    "error", "Internal Server Error",
+                    "message", "Failed to retrieve order"
             ));
         }
     }
@@ -309,8 +309,8 @@ public class OrderController {
 
             if (snapshot == null || snapshot.isEmpty()) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
-                    "error", "Not Found",
-                    "message", "Orderbook not found for credit: " + creditId
+                        "error", "Not Found",
+                        "message", "Orderbook not found for credit: " + creditId
                 ));
             }
 
@@ -319,8 +319,8 @@ public class OrderController {
         } catch (Exception e) {
             log.error("❌ Failed to get snapshot: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
-                "error", "Internal Server Error",
-                "message", "Failed to retrieve orderbook snapshot"
+                    "error", "Internal Server Error",
+                    "message", "Failed to retrieve orderbook snapshot"
             ));
         }
     }
@@ -339,8 +339,8 @@ public class OrderController {
         } catch (Exception e) {
             log.error("❌ Failed to get snapshots: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
-                "error", "Internal Server Error",
-                "message", "Failed to retrieve orderbook snapshots"
+                    "error", "Internal Server Error",
+                    "message", "Failed to retrieve orderbook snapshots"
             ));
         }
     }

@@ -5,6 +5,7 @@ import com.example.carbon_credit.DTO.PlaceOrderCommandDTO;
 import com.example.carbon_credit.DTO.TradeEventDTO;
 import com.example.carbon_credit.MatchingEngine.MatchingEngine;
 import com.example.carbon_credit.Service.*;
+import com.example.carbon_credit.Service.impl.ProjectServiceImpl;
 import com.example.carbon_credit.Repository.OrderRepository;
 import com.example.carbon_credit.Entity.Order;
 import lombok.RequiredArgsConstructor;
@@ -31,6 +32,9 @@ public class KafkaConsumerService {
     private final SettlementService settlementService;
     private final PersistenceService persistenceService;
     private final WalletService walletService;
+    private final RoleRequestService roleRequestService;
+    private final ProjectServiceImpl projectServiceImpl;
+    private final CarbonCreditService carbonCreditService;
     private final CertificateService certificateService;
     private final OrderRepository orderRepository;
     private final OhlcService ohlcService;
@@ -190,41 +194,35 @@ public class KafkaConsumerService {
         }
     }
 
-    @Transactional
+
     private void processEvent(BlockchainEventDTO event) {
         String eventType = event.getEventType();
 
         switch (eventType) {
-            // case "ADMIN_ADDED" -> {
-            // walletService.handleAdminAdded(event);
-            // }
-            // case "ADMIN_REMOVED" -> {
-            // walletService.handleAdminRemoved(event);
-            // }
-            // case "GOVERNMENT_ADDED" -> {
-            // walletService.handleGovernmentAdded(event);
-            // }
-            // case "GOVERNMENT_REMOVED" -> {
-            // walletService.handleGovernmentRemoved(event);
-            // }
-            // case "ORGANIZATION_VERIFIED" -> {
-            // walletService.handleVerifierAdded(event);
-            // }
-            // case "ORGANIZATION_REVOKED" -> {
-            // walletService.handleVerifierRemoved(event);
-            // }
-            // case "PROJECT_APPROVED" -> {
-            // walletService.handleProjectApproved(event);
-            // }
-            // case "PROJECT_REVOLKED" -> {
-            // walletService.handleProjectRevolked(event);
-            // }
-            // case "CREDIT_MINTED" -> {
-            // walletService.handleCreditMinted(event);
-            // }
-            // case "CERTIFICATE_MINTED" -> {
-            // certificateService.handleCertificateMinted(event);
-            // }
+            case "ADMIN_ADDED" -> {
+                roleRequestService.handleAdminAdded(event);
+            }
+            case "ADMIN_REMOVED" -> {
+                roleRequestService.handleAdminRemoved(event);
+            }
+            case "GOVERNMENT_ADDED" -> {
+                roleRequestService.handleGovernmentAdded(event);
+            }
+            case "GOVERNMENT_REMOVED" -> {
+                roleRequestService.handleGovernmentRemoved(event);
+            }
+            case "ORGANIZATION_VERIFIED" -> {
+                roleRequestService.handleVerifierAdded(event);
+            }
+            case "ORGANIZATION_REVOKED" -> {
+                roleRequestService.handleVerifierRemoved(event);
+            }
+            case "PROJECT_APPROVED" -> {
+                projectServiceImpl.handleProjectApproved(event);
+            }
+            case "CREDIT_MINTED" -> {
+                carbonCreditService.handleCreditMinted(event);
+            }
             case "BATCH_CERTIFICATE_RETIRED" -> {
                 certificateService.handleBatchCeritificateRetired(event);
             }
@@ -240,14 +238,14 @@ public class KafkaConsumerService {
             case "CREDIT_WITHDRAWN" -> {
                 walletService.handleCreditWithdraw(event);
             }
+            case "TRADE_SETTLED" -> {
+                walletService.handleTradeSettled(event);
+            }
             case "BALANCE_LOCKED" -> {
                 walletService.handleBalanceLocked(event);
             }
             case "BALANCE_UNLOCKED" -> {
                 walletService.handleBalanceUnlocked(event);
-            }
-            case "TRADE_SETTLED" -> {
-                walletService.handleTradeSettled(event);
             }
             default -> {
                 log.warn("⚠️ Unhandled event type: {}", eventType);

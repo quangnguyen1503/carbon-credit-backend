@@ -54,7 +54,7 @@ public class OrderBook {
     public synchronized void addOrder(PlaceOrderCommandDTO order) {
         OrderNode orderNode = new OrderNode(order);
         orderIndex.put(order.getOrderId(), orderNode);
-        remainingAmounts.put(order.getOrderId(), order.getAmount());
+        remainingAmounts.putIfAbsent(order.getOrderId(), order.getAmount());
 
         if ("BUY".equalsIgnoreCase(order.getOrderType())) {
             addToBidLevel(order, orderNode);
