@@ -17,8 +17,8 @@ public class OrderBook {
     private final String creditId;
 
     // Heaps for fast price lookups
-    private final IndexedHeap<BigDecimal> bidHeap;  // Max heap for bids (highest first)
-    private final IndexedHeap<BigDecimal> askHeap;  // Min heap for asks (lowest first)
+    private final IndexedHeap<BigDecimal> bidHeap; // Max heap for bids (highest first)
+    private final IndexedHeap<BigDecimal> askHeap; // Min heap for asks (lowest first)
 
     // Price levels: Price → LinkedList of orders
     private final Map<BigDecimal, BidPriceLevel> bidLevels;
@@ -38,8 +38,8 @@ public class OrderBook {
 
     public OrderBook(String creditId) {
         this.creditId = creditId;
-        this.bidHeap = new IndexedHeap<>(true);   // Max heap
-        this.askHeap = new IndexedHeap<>(false);  // Min heap
+        this.bidHeap = new IndexedHeap<>(true); // Max heap
+        this.askHeap = new IndexedHeap<>(false); // Min heap
         this.bidLevels = new ConcurrentHashMap<>();
         this.askLevels = new ConcurrentHashMap<>();
         this.orderIndex = new ConcurrentHashMap<>();
@@ -90,7 +90,7 @@ public class OrderBook {
 
             // Check price cross
             boolean priceCross = isBuy
-                    ? newOrder.getPrice().compareTo(bestOppositePrice) >= 0  // Buy price >= sell price
+                    ? newOrder.getPrice().compareTo(bestOppositePrice) >= 0 // Buy price >= sell price
                     : newOrder.getPrice().compareTo(bestOppositePrice) <= 0; // Sell price <= buy price
 
             if (!priceCross) {
@@ -118,6 +118,11 @@ public class OrderBook {
             Iterator<PlaceOrderCommandDTO> iterator = priceLevel.getOrders().iterator();
             while (iterator.hasNext() && remaining > 0) {
                 PlaceOrderCommandDTO oppOrder = iterator.next();
+
+                if (oppOrder.getUserId().equals(newOrder.getUserId())) {
+                    continue;
+                }
+
                 int oppRemaining = remainingAmounts.getOrDefault(oppOrder.getOrderId(), oppOrder.getAmount());
 
                 if (oppRemaining <= 0) {
@@ -152,7 +157,7 @@ public class OrderBook {
                         .sellOrderId(sellOrderId)
                         .creditId(creditId)
                         .amount(matchAmount)
-                        .price(bestOppositePrice)  // Trade at maker price
+                        .price(bestOppositePrice) // Trade at maker price
                         .totalValue(bestOppositePrice.multiply(BigDecimal.valueOf(matchAmount)))
                         .tradeAt(LocalDateTime.now())
                         .build();
@@ -258,14 +263,40 @@ public class OrderBook {
     // ==================== SNAPSHOT ====================
 
     public Map<String, Object> getSnapshot() {
+        // Prepare Bids (Buy Orders) - Sorted Highest Price First
+        List<Map<String, Object>> bids = new ArrayList<>();
+        // Use Heap to traverse priority
+        // For simplicity in snapshot, we can iterate bidLevels keys (prices) and sort
+        // them
+        bidLevels.entrySet().stream()
+                .sorted((e1, e2) -> e2.getKey().compareTo(e1.getKey())) // Descending
+                .limit(20) // Limit depth
+                .forEach(e -> {
+                    bids.add(Map.of(
+                            "price", e.getKey(),
+                            "amount", e.getValue().getTotalVolume()));
+                });
+
+        // Prepare Asks (Sell Orders) - Sorted Lowest Price First
+        List<Map<String, Object>> asks = new ArrayList<>();
+        askLevels.entrySet().stream()
+                .sorted(Map.Entry.comparingByKey()) // Ascending
+                .limit(20) // Limit depth
+                .forEach(e -> {
+                    asks.add(Map.of(
+                            "price", e.getKey(),
+                            "amount", e.getValue().getTotalVolume()));
+                });
+
         return Map.of(
                 "creditId", creditId,
-                "bestBid", getBestBidPrice() != null ? getBestBidPrice() : "N/A",
-                "bestAsk", getBestAskPrice() != null ? getBestAskPrice() : "N/A",
-                "bidLevels", bidLevels.size(),
-                "askLevels", askLevels.size(),
-                "totalOrders", getTotalOrders()
-        );
+                "bestBid", getBestBidPrice() != null ? getBestBidPrice() : BigDecimal.ZERO, // Fix N/A issue
+                "bestAsk", getBestAskPrice() != null ? getBestAskPrice() : BigDecimal.ZERO,
+                "bestBidVolume", getBestBidVolume() != null ? getBestBidVolume() : 0,
+                "bestAskVolume", getBestAskVolume() != null ? getBestAskVolume() : 0,
+                "bids", bids,
+                "asks", asks,
+                "totalOrders", getTotalOrders());
     }
 
     // ==================== PRIVATE METHODS ====================
@@ -294,7 +325,8 @@ public class OrderBook {
 
     private void removeFromBidLevel(PlaceOrderCommandDTO order) {
         BidPriceLevel level = bidLevels.get(order.getPrice());
-        if (level == null) return;
+        if (level == null)
+            return;
 
         level.removeOrder(order);
         if (level.isEmpty()) {
@@ -306,7 +338,8 @@ public class OrderBook {
 
     private void removeFromAskLevel(PlaceOrderCommandDTO order) {
         AskPriceLevel level = askLevels.get(order.getPrice());
-        if (level == null) return;
+        if (level == null)
+            return;
 
         level.removeOrder(order);
         if (level.isEmpty()) {

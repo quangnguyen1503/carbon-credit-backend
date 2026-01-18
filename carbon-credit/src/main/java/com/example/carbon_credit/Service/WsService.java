@@ -12,8 +12,10 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -29,8 +31,7 @@ public class WsService {
         try {
             messagingTemplate.convertAndSend(
                     "/topic/trades/" + trade.getCreditId(),
-                    trade
-            );
+                    trade);
 
             messagingTemplate.convertAndSend("/topic/trades/all", trade);
 
@@ -45,20 +46,38 @@ public class WsService {
      */
     public void broadcastOrderBookUpdate(String creditId, Map<String, Object> snapshot) {
         try {
-            // --- SỬA LỖI TẠI ĐÂY: Dùng hàm helper thay vì ép kiểu trực tiếp ---
+            // Safe conversion for lists
+            List<Map<String, Object>> rawBids = (List<Map<String, Object>>) snapshot.getOrDefault("bids",
+                    new ArrayList<>());
+            List<Map<String, Object>> rawAsks = (List<Map<String, Object>>) snapshot.getOrDefault("asks",
+                    new ArrayList<>());
+
+            List<OrderBookUpdateDTO.OrderLevelDTO> bids = rawBids.stream()
+                    .map(m -> new OrderBookUpdateDTO.OrderLevelDTO(
+                            getBigDecimal(m.get("price")),
+                            getInteger(m.get("amount"))))
+                    .collect(Collectors.toList());
+
+            List<OrderBookUpdateDTO.OrderLevelDTO> asks = rawAsks.stream()
+                    .map(m -> new OrderBookUpdateDTO.OrderLevelDTO(
+                            getBigDecimal(m.get("price")),
+                            getInteger(m.get("amount"))))
+                    .collect(Collectors.toList());
+
             OrderBookUpdateDTO update = OrderBookUpdateDTO.builder()
                     .creditId(creditId)
-                    .bestBid(getBigDecimal(snapshot.get("bestBid"))) // ✅ Safe conversion
-                    .bestAsk(getBigDecimal(snapshot.get("bestAsk"))) // ✅ Safe conversion
-                    .bidVolume(getInteger(snapshot.get("bestBidVolume"))) // ✅ Safe conversion
-                    .askVolume(getInteger(snapshot.get("bestAskVolume"))) // ✅ Safe conversion
+                    .bestBid(getBigDecimal(snapshot.get("bestBid")))
+                    .bestAsk(getBigDecimal(snapshot.get("bestAsk")))
+                    .bidVolume(getInteger(snapshot.get("bestBidVolume")))
+                    .askVolume(getInteger(snapshot.get("bestAskVolume")))
+                    .bids(bids)
+                    .asks(asks)
                     .timestamp(LocalDateTime.now())
                     .build();
 
             messagingTemplate.convertAndSend(
                     "/topic/orderbook/" + creditId,
-                    update
-            );
+                    update);
 
             log.debug("📊 Broadcasted orderbook update for {}", creditId);
         } catch (Exception e) {
@@ -75,13 +94,11 @@ public class WsService {
                     "creditId", creditId,
                     "price", price,
                     "volume", volume,
-                    "timestamp", LocalDateTime.now()
-            );
+                    "timestamp", LocalDateTime.now());
 
             messagingTemplate.convertAndSend(
                     "/topic/price/" + creditId,
-                    priceUpdate
-            );
+                    priceUpdate);
 
             log.debug("💲 Broadcasted price update: {} @ {}", creditId, price);
         } catch (Exception e) {
@@ -103,8 +120,7 @@ public class WsService {
             messagingTemplate.convertAndSendToUser(
                     userId,
                     "/queue/errors",
-                    notification
-            );
+                    notification);
 
             log.info("Sent failure notification to user {}", userId);
 
@@ -146,14 +162,65 @@ public class WsService {
 
 
 
+    /**
+     * Gửi thông báo hủy lệnh thành công cho user
+     */
+    public void notifyOrderCancelled(String userId, String orderId, String creditId) {
+        try {
+            OrderNotificationDTO notification = OrderNotificationDTO.builder()
+                    .type("ORDER_CANCELLED")
+                    .orderId(orderId)
+                    .creditId(creditId)
+                    .message("Order cancelled successfully")
+                    .timestamp(System.currentTimeMillis())
+                    .build();
+
+            // Gửi đến kênh riêng của user
+            messagingTemplate.convertAndSendToUser(
+                    userId,
+                    "/queue/orders",
+                    notification);
+
+            log.info("🔔 Sent cancel notification to user {}", userId);
+        } catch (Exception e) {
+            log.error("❌ Failed to send cancel notification: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * Gửi thông báo lệnh hết hạn cho user
+     */
+    public void notifyOrderExpired(String userId, String orderId, String creditId) {
+        try {
+            OrderNotificationDTO notification = OrderNotificationDTO.builder()
+                    .type("ORDER_EXPIRED")
+                    .orderId(orderId)
+                    .creditId(creditId)
+                    .message("Order expired because it exceeded 24 hours")
+                    .timestamp(System.currentTimeMillis())
+                    .build();
+
+            messagingTemplate.convertAndSendToUser(
+                    userId,
+                    "/queue/orders",
+                    notification);
+
+            log.info("🔔 Sent expired notification to user {}", userId);
+        } catch (Exception e) {
+            log.error("❌ Failed to send expired notification: {}", e.getMessage());
+        }
+    }
+
     // ==================== HELPER METHODS ====================
 
     /**
      * Helper: Chuyển đổi object sang BigDecimal an toàn
      */
     private BigDecimal getBigDecimal(Object value) {
-        if (value == null) return BigDecimal.ZERO;
-        if (value instanceof BigDecimal) return (BigDecimal) value;
+        if (value == null)
+            return BigDecimal.ZERO;
+        if (value instanceof BigDecimal)
+            return (BigDecimal) value;
         if (value instanceof String) {
             try {
                 return new BigDecimal((String) value);
@@ -162,9 +229,12 @@ public class WsService {
                 return BigDecimal.ZERO;
             }
         }
-        if (value instanceof Integer) return BigDecimal.valueOf((Integer) value);
-        if (value instanceof Double) return BigDecimal.valueOf((Double) value);
-        if (value instanceof Long) return BigDecimal.valueOf((Long) value);
+        if (value instanceof Integer)
+            return BigDecimal.valueOf((Integer) value);
+        if (value instanceof Double)
+            return BigDecimal.valueOf((Double) value);
+        if (value instanceof Long)
+            return BigDecimal.valueOf((Long) value);
 
         return BigDecimal.ZERO;
     }
@@ -173,9 +243,12 @@ public class WsService {
      * Helper: Chuyển đổi object sang Integer an toàn
      */
     private Integer getInteger(Object value) {
-        if (value == null) return 0;
-        if (value instanceof Integer) return (Integer) value;
-        if (value instanceof Number) return ((Number) value).intValue();
+        if (value == null)
+            return 0;
+        if (value instanceof Integer)
+            return (Integer) value;
+        if (value instanceof Number)
+            return ((Number) value).intValue();
         if (value instanceof String) {
             try {
                 return Integer.parseInt((String) value);

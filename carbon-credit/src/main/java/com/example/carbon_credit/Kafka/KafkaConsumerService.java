@@ -6,6 +6,8 @@ import com.example.carbon_credit.DTO.TradeEventDTO;
 import com.example.carbon_credit.MatchingEngine.MatchingEngine;
 import com.example.carbon_credit.Service.*;
 import com.example.carbon_credit.Service.impl.ProjectServiceImpl;
+import com.example.carbon_credit.Repository.OrderRepository;
+import com.example.carbon_credit.Entity.Order;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -16,7 +18,6 @@ import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 
@@ -34,8 +35,11 @@ public class KafkaConsumerService {
     private final RoleRequestService roleRequestService;
     private final ProjectServiceImpl projectServiceImpl;
     private final CarbonCreditService carbonCreditService;
+    private final CertificateService certificateService;
+    private final OrderRepository orderRepository;
+    private final OhlcService ohlcService;
 
-    private static final int MAX_RETRY_ATTEMPTS = 3;
+    private static final int MAX_RETRY_ATTEMPTS = 5;
     private static final long RETRY_DELAY_MS = 100;
 
     /**
@@ -43,13 +47,11 @@ public class KafkaConsumerService {
      * Quan trọng: concurrency phải <= số partitions của topic 'orders'
      */
     @KafkaListener(topics = "orders", groupId = "carbon-matching-group", // Tách riêng group cho matching
-            concurrency = "3", containerFactory = "kafkaListenerContainerFactory" // Cần config factory có ackMode =
-            // MANUAL_IMMEDIATE
-    )
+            concurrency = "3", containerFactory = "kafkaListenerContainerFactory")
     public void consumeOrder(PlaceOrderCommandDTO command,
-                             Acknowledgment ack,
-                             @Header(KafkaHeaders.RECEIVED_PARTITION) int partition,
-                             @Header(KafkaHeaders.OFFSET) long offset) {
+            Acknowledgment ack,
+            @Header(KafkaHeaders.RECEIVED_PARTITION) int partition,
+            @Header(KafkaHeaders.OFFSET) long offset) throws Exception {
 
         long startTime = System.nanoTime();
 
@@ -62,21 +64,27 @@ public class KafkaConsumerService {
                 throw new IllegalArgumentException("Price or Amount is invalid");
             }
 
+            // 0. CHECK STATUS (Race Condition Guard)
+            Order order = orderRepository.findById(command.getOrderId()).orElse(null);
+            if (order != null && "CANCELLED".equals(order.getStatus())) {
+                log.warn("🛑 Skipping order {} (Status: CANCELLED)", command.getOrderId());
+                ack.acknowledge();
+                return;
+            }
+
             // 1. GỌI MATCHING ENGINE (In-Memory)
             List<TradeEventDTO> trades = matchingEngine.processOrder(command);
 
             // 2. Xử lý kết quả khớp
             if (trades != null && !trades.isEmpty()) {
                 log.info(" Matched {} trades for order {}", trades.size(), command.getOrderId());
-                // Gửi trades đi để các service khác xử lý (Async)
-                kafkaProducerService.sendTrades(trades);
+                // CRITICAL: Send sync to ensure trades are persisted before ack
+                kafkaProducerService.sendTradesSync(trades);
             } else {
                 log.info(" Order {} added to OrderBook (No match)", command.getOrderId());
             }
 
             // 3. Cập nhật UI (OrderBook Snapshot)
-            // Lưu ý: Có thể đẩy việc này ra một topic riêng 'market-data' để giảm tải cho
-            // thread matching
             broadcastOrderBookChange(command.getCreditId());
 
             // 4. Commit offset khi mọi thứ thành công
@@ -89,8 +97,6 @@ public class KafkaConsumerService {
         } catch (Exception e) {
             log.error("CRITICAL ERROR processing order {}: {}", command.getOrderId(), e.getMessage(), e);
             throw e;
-        } finally {
-            ack.acknowledge();
         }
     }
 
@@ -112,6 +118,7 @@ public class KafkaConsumerService {
             // 3. Thông báo Realtime (WebSocket)
             try {
                 wsService.broadcastTrade(trade);
+                ohlcService.updateOhlcFromTrade(trade.getCreditId(), trade.getPrice(), trade.getAmount());
                 wsService.broadcastPriceUpdate(trade.getCreditId(), trade.getPrice(), trade.getAmount());
             } catch (Exception wsEx) {
                 log.warn("WebSocket broadcast failed for trade {}: {}", trade.getTradeId(), wsEx.getMessage());
@@ -126,12 +133,7 @@ public class KafkaConsumerService {
         }
     }
 
-    @KafkaListener(
-            topics = "onchain-events",
-            groupId = "${spring.kafka.consumer.group-id}",
-            containerFactory = "kafkaListenerContainerFactory"
-    )
-    @Transactional
+    @KafkaListener(topics = "onchain-events", groupId = "carbon-market-group", containerFactory = "kafkaListenerContainerFactory")
     public void consumeBlockchainEvent(BlockchainEventDTO event, Acknowledgment ack) {
 
         int attempt = 0;
@@ -145,9 +147,7 @@ public class KafkaConsumerService {
                         event.getEventType(),
                         event.getTransactionHash(),
                         attempt,
-                        MAX_RETRY_ATTEMPTS
-                );
-
+                        MAX_RETRY_ATTEMPTS);
 
                 processEvent(event);
 
@@ -213,7 +213,6 @@ public class KafkaConsumerService {
             }
             case "ORGANIZATION_VERIFIED" -> {
                 roleRequestService.handleVerifierAdded(event);
-
             }
             case "ORGANIZATION_REVOKED" -> {
                 roleRequestService.handleVerifierRemoved(event);
@@ -221,21 +220,12 @@ public class KafkaConsumerService {
             case "PROJECT_APPROVED" -> {
                 projectServiceImpl.handleProjectApproved(event);
             }
-//            case "PROJECT_REVOLKED" -> {
-//                projectServiceImpl.handleProjectRevolked(event);
-//            }
             case "CREDIT_MINTED" -> {
                 carbonCreditService.handleCreditMinted(event);
             }
-//            case "CREDIT_RETIRED" -> {
-//                walletService.handleCreditRetired(event);
-//            }
-//            case "CERTIFICATE_MINTED" -> {
-//                walletService.handleCertificateMinted(event);
-//            }
-//            case "BATCH_CERTIFICATE_RETIRED" -> {
-//                walletService.handleBatchCeritificateRetired(event);
-//            }
+            case "BATCH_CERTIFICATE_RETIRED" -> {
+                certificateService.handleBatchCeritificateRetired(event);
+            }
             case "NATIVE_DEPOSITED" -> {
                 walletService.handleNativeDeposited(event);
             }

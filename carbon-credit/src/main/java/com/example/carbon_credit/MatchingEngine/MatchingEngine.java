@@ -36,7 +36,7 @@ public class MatchingEngine {
             return new OrderBook(k);
         });
 
-        System.out.printf("Orderbook:", String.valueOf(orderBook));
+        log.debug("OrderBook created/retrieved: {}", orderBook.getCreditId());
 
         // Handle Market Orders (price = 0)
         boolean isMarketOrder = command.getPrice().compareTo(BigDecimal.ZERO) == 0;
@@ -89,9 +89,7 @@ public class MatchingEngine {
      */
     public Map<String, Map<String, Object>> getAllOrderBooks() {
         Map<String, Map<String, Object>> snapshots = new ConcurrentHashMap<>();
-        orderBooks.forEach((creditId, orderBook) ->
-                snapshots.put(creditId, orderBook.getSnapshot())
-        );
+        orderBooks.forEach((creditId, orderBook) -> snapshots.put(creditId, orderBook.getSnapshot()));
         return snapshots;
     }
 

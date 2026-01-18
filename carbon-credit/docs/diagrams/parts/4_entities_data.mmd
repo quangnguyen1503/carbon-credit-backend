@@ -1,0 +1,66 @@
+classDiagram
+    %% ==================== ENTITIES ====================
+    class User {
+        +String id
+        +String name
+        +String email
+        +String roleId
+        +String verifierRoleId
+        +Boolean isActive
+        +String documentHash
+        +LocalDateTime createdAt
+        +LocalDateTime updatedAt
+    }
+    class Wallet {
+        +String id
+        +String address
+        +BigDecimal nativeBalance
+        +BigDecimal nativeLocked
+        +LocalDateTime updatedAt
+    }
+    class Project {
+        +String id
+        +String name
+        +Integer vintage
+        +String ownerId
+        +String type
+        +String location
+        +String description
+        +String ipfsHash
+        +String status
+        +Long totalAmount
+        +Long issueAmount
+        +Long availableAmount
+        +Boolean isListed
+    }
+    class CarbonCredit {
+        +String id
+        +String projectId
+        +long tokenId
+        +long issueAmount
+        +long retiredAmount
+    }
+    class Order {
+        +String id
+        +String userId
+        +String creditId
+        +String orderType
+        +BigDecimal price
+        +Integer amount
+        +Integer remainingAmount
+        +String status
+    }
+    class Certificate {
+        +String id
+        +BigInteger nftTokenId
+        +String userId
+        +BigInteger totalAmount
+        +String txHash
+        +LocalDateTime createdAt
+    }
+
+    %% ==================== RELATIONSHIPS ====================
+    User "1" -- "1" Wallet : Has
+    Project "1" -- "1" CarbonCredit : Earns
+    User "1" -- "*" Order : Places
+    User "1" -- "*" Certificate : Owns

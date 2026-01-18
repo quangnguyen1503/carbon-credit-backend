@@ -1,0 +1,79 @@
+classDiagram
+    %% PART 3: SETTLEMENT & CERTIFICATES
+
+    %% ==================== CONTROLLERS ====================
+    class CertificateController {
+        +getMyCertificates()
+        +getCertificateDetail(String)
+    }
+    class RetireRequestController {
+        +createRetireRequest(RetireRequestDTO)
+    }
+
+    %% ==================== SERVICES ====================
+    class SettlementService {
+        +addTradeToBatch(TradeEventDTO)
+        +settleBatch()
+        +handleFailedBatch(List, String)
+    }
+    class ContractService {
+        +lockBalance(String, BigInteger)
+        +unlockBalance(String)
+        +processBatchSettlement(BigInteger, List, List, List)
+        +getLockedBalanceOwner(String)
+    }
+    class KafkaConsumerService {
+        +consumeOrder(PlaceOrderCommandDTO)
+        +consumeTrade(TradeEventDTO)
+        +consumeBlockchainEvent(BlockchainEventDTO)
+    }
+    class CertificateService {
+        +handleBatchCeritificateRetired(BlockchainEventDTO)
+        +getCertificatesByUser(String) List~CertificateResponse~
+    }
+
+    %% ==================== ENTITIES ====================
+    class Certificate {
+        +String id
+        +BigInteger nftTokenId
+        +String userId
+        +BigInteger totalAmount
+        +String txHash
+        +LocalDateTime createdAt
+    }
+
+    %% ==================== DTOs ====================
+    class TradeEventDTO { 
+        %% Included here as it connects Trading to Settlement
+        -String tradeId
+        -Integer amount
+        -BigDecimal price
+    }
+    class BlockchainEventDTO {
+        -String eventType
+        -String transactionHash
+        -BigInteger blockNumber
+        -Map~String, Object~ eventData
+    }
+    class RetireRequestDTO {
+        -String onchainTxHash
+        -String nftTokenId
+        -String reason
+    }
+    class CertificateResponse {
+        -String id
+        -String nftTokenId
+        -BigInteger totalAmount
+        -String txHash
+    }
+
+    %% ==================== RELATIONSHIPS ====================
+    CertificateController ..> CertificateService
+    RetireRequestController ..> CertificateService
+    
+    KafkaConsumerService ..> SettlementService : Trigger
+    SettlementService ..> ContractService : Call Smart Contract
+    
+    CertificateService ..> Certificate : Manage
+    KafkaConsumerService ..> BlockchainEventDTO : Consumes
+    SettlementService ..> TradeEventDTO : Consumes

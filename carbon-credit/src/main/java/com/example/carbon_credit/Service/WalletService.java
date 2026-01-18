@@ -483,6 +483,7 @@ public class WalletService {
 
                     // Cộng lại vào ví Native
                     wallet.setNativeBalance(wallet.getNativeBalance().add(unlockAmount));
+                    wallet.setNativeLocked(wallet.getNativeLocked().subtract(unlockAmount));
                     wallet.setUpdatedAt(LocalDateTime.now());
                     walletRepository.save(wallet);
                 }
