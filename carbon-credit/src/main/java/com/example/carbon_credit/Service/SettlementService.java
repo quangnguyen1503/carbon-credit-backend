@@ -199,7 +199,7 @@ public class SettlementService {
                     order.getUserId(),
                     order.getId(),
                     order.getCreditId(),
-                    "Settlement transaction failed on Blockchain. Funds unlocked."
+                    "Settlement transaction failed on Blockchain. Funds unlocked." + reason
             );
 
         });
