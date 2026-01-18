@@ -31,6 +31,18 @@ public class OrderService {
         return orderRepository.findByUserIdAndStatus(userId, "OPEN");
     }
 
+    public List<Order> getOrdersByUserIdAndStatus(String userId, String status) {
+        return orderRepository.findByUserIdAndStatus(userId, status);
+    }
+
+    public List<Order> getOrdersByUserIdAndCreditId(String userId, String creditId) {
+        return orderRepository.findByUserIdAndCreditId(userId, creditId);
+    }
+
+    public List<Order> getOrdersByUserIdAndStatusAndCreditId(String userId, String status, String creditId) {
+        return orderRepository.findByUserIdAndStatusAndCreditId(userId, status, creditId);
+    }
+
     /**
      * Find order by ID
      */
@@ -50,15 +62,5 @@ public class OrderService {
      */
     public Map<String, Map<String, Object>> getAllOrderBookSnapshots() {
         return matchingEngine.getAllOrderBooks();
-    }
-    public Map<String, Object> getSnapshot() {
-        // Lấy danh sách lệnh Mua (Sắp xếp giá cao nhất lên đầu)
-        List<Order> buyOrders = orderRepository.findByOrderTypeAndStatusOrderByPriceDesc("BUY", "OPEN");
-
-        // Lấy danh sách lệnh Bán (Sắp xếp giá thấp nhất lên đầu)
-        List<Order> sellOrders = orderRepository.findByOrderTypeAndStatusOrderByPriceAsc("SELL", "OPEN");
-
-        // Trả về Map chứa List của 2 List (Đúng cấu trúc Controller đang chờ)
-        return Map.of("orders", List.of(buyOrders, sellOrders));
     }
 }

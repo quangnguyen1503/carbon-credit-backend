@@ -4,11 +4,8 @@ import com.example.carbon_credit.DTO.PlaceOrderCommandDTO;
 import com.example.carbon_credit.DTO.TradeEventDTO;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import org.web3j.protocol.core.RemoteFunctionCall;
-import org.web3j.protocol.core.methods.response.TransactionReceipt;
 
 import java.math.BigDecimal;
-import java.math.BigInteger;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -57,7 +54,7 @@ public class OrderBook {
     public synchronized void addOrder(PlaceOrderCommandDTO order) {
         OrderNode orderNode = new OrderNode(order);
         orderIndex.put(order.getOrderId(), orderNode);
-        remainingAmounts.put(order.getOrderId(), order.getAmount());
+        remainingAmounts.putIfAbsent(order.getOrderId(), order.getAmount());
 
         if ("BUY".equalsIgnoreCase(order.getOrderType())) {
             addToBidLevel(order, orderNode);
@@ -132,11 +129,27 @@ public class OrderBook {
                 // Calculate match amount
                 int matchAmount = Math.min(remaining, oppRemaining);
 
+                String buyerId, sellerId, buyOrderId, sellOrderId;
+
+                if (isBuy) {
+                    // Incoming (New) is BUY -> Buyer = New, Seller = Opp
+                    buyerId = newOrder.getUserId();
+                    sellerId = oppOrder.getUserId();
+                    buyOrderId = newOrder.getOrderId();
+                    sellOrderId = oppOrder.getOrderId();
+                } else {
+                    // Incoming (New) is SELL -> Buyer = Opp, Seller = New
+                    buyerId = oppOrder.getUserId();
+                    sellerId = newOrder.getUserId();
+                    buyOrderId = oppOrder.getOrderId();
+                    sellOrderId = newOrder.getOrderId();
+                }
+
                 // Create trade
                 TradeEventDTO trade = TradeEventDTO.builder()
                         .tradeId(UUID.randomUUID().toString())
-                        .buyOrderId(isBuy ? newOrder.getOrderId() : oppOrder.getOrderId())
-                        .sellOrderId(isBuy ? oppOrder.getOrderId() : newOrder.getOrderId())
+                        .buyOrderId(buyOrderId)
+                        .sellOrderId(sellOrderId)
                         .creditId(creditId)
                         .amount(matchAmount)
                         .price(bestOppositePrice)  // Trade at maker price
@@ -358,7 +371,6 @@ public class OrderBook {
                     .sum();
             lastUpdated = LocalDateTime.now();
         }
-
     }
 
     public static class BidPriceLevel extends PriceLevel {

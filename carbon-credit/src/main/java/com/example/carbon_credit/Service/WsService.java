@@ -1,8 +1,10 @@
 package com.example.carbon_credit.Service;
 
+import com.example.carbon_credit.DTO.OrderNotificationDTO;
 import com.example.carbon_credit.DTO.TradeEventDTO;
 import com.example.carbon_credit.DTO.OrderBookUpdateDTO;
-import com.example.carbon_credit.Entity.Order;
+import com.example.carbon_credit.Entity.Notification;
+import com.example.carbon_credit.Repository.NotificationRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -20,125 +22,168 @@ public class WsService {
 
     private final SimpMessagingTemplate messagingTemplate;
 
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // 1. THÔNG BÁO THỊ TRƯỜNG (MARKET DATA) - Dành cho tất cả User
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
     /**
-     * Broadcast trade event khi có giao dịch mới khớp lệnh thành công
+     * Broadcast trade event khi có giao dịch mới
      */
     public void broadcastTrade(TradeEventDTO trade) {
-        // Gửi đến topic cụ thể cho loại credit đó
-        messagingTemplate.convertAndSend(
-                "/topic/trades/" + trade.getCreditId(),
-                trade
-        );
+        try {
+            messagingTemplate.convertAndSend(
+                    "/topic/trades/" + trade.getCreditId(),
+                    trade
+            );
 
-        // Gửi đến topic chung cho tất cả giao dịch trên sàn
-        messagingTemplate.convertAndSend("/topic/trades/all", trade);
+            messagingTemplate.convertAndSend("/topic/trades/all", trade);
 
-        log.info("📡 Broadcasted trade {} via WebSocket", trade.getTradeId());
-    }
-
-    public void broadcastSnapshot(List<Order> buyOrders, List<Order> sellOrders) {
-        Map<String, Object> payload = Map.of(
-                "type", "SNAPSHOT",
-                "orders", List.of(buyOrders, sellOrders),
-                "timestamp", LocalDateTime.now()
-        );
-
-        // Bạn có thể gửi vào topic chung hoặc topic theo creditId tùy nhu cầu
-        messagingTemplate.convertAndSend("/topic/orderbook", payload);
-
-        log.info("📊 Broadcasted Orderbook Snapshot: {} buys, {} sells", buyOrders.size(), sellOrders.size());
-    }
-
-    /**
-     * Broadcast cập nhật Orderbook (Giá mua/bán tốt nhất)
-     */
-    public void broadcastOrderBookUpdate(String creditId, Map<String, Object> snapshot) {
-        OrderBookUpdateDTO update = OrderBookUpdateDTO.builder()
-                .creditId(creditId)
-                .bestBid((BigDecimal) snapshot.get("bestBid"))
-                .bestAsk((BigDecimal) snapshot.get("bestAsk"))
-                .bidVolume((Integer) snapshot.get("bestBidVolume"))
-                .askVolume((Integer) snapshot.get("bestAskVolume"))
-                .timestamp(LocalDateTime.now())
-                .build();
-
-        messagingTemplate.convertAndSend(
-                "/topic/orderbook/" + creditId,
-                update
-        );
-
-        log.debug("📊 Broadcasted orderbook update for {}", creditId);
-    }
-
-    /**
-     * Broadcast cập nhật giá khớp lệnh cuối cùng (Last Price)
-     */
-    public void broadcastPriceUpdate(String creditId, BigDecimal price, int volume) {
-        Map<String, Object> priceUpdate = Map.of(
-                "creditId", creditId,
-                "price", price,
-                "volume", volume,
-                "timestamp", LocalDateTime.now()
-        );
-
-        messagingTemplate.convertAndSend(
-                "/topic/price/" + creditId,
-                priceUpdate
-        );
-
-        log.debug("💲 Broadcasted price update: {} @ {}", creditId, price);
-    }
-
-    /**
-     * Cập nhật trạng thái lệnh (Dùng để FE xóa lệnh khỏi bảng hoặc update số lượng khớp một phần)
-     */
-    public void broadcastOrderUpdate(Order order) {
-        String destination = "/topic/orderbook/" + order.getCreditId();
-        if ("FILLED".equals(order.getStatus()) || "CANCELLED".equals(order.getStatus())) {
-            // Lệnh đã xong hoặc bị hủy -> Xóa khỏi UI
-            messagingTemplate.convertAndSend(destination, Map.of("type", "REMOVE", "orderId", order.getId()));
-        } else {
-            // Lệnh khớp một phần -> Cập nhật số lượng còn lại
-            messagingTemplate.convertAndSend(destination, Map.of("type", "UPDATE", "order", order));
+            log.info("📡 Broadcasted trade {} via WebSocket", trade.getTradeId());
+        } catch (Exception e) {
+            log.error("❌ Failed to broadcast trade: {}", e.getMessage());
         }
     }
 
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // 2. THÔNG BÁO CÁ NHÂN (USER DATA) - Chỉ gửi cho đúng chủ ví
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
     /**
-     * Cập nhật số dư ví (Native ETH hoặc Credit Token)
-     * Rất quan trọng cho luồng Nạp/Rút đồng bộ với Blockchain
+     * Broadcast orderbook update khi có thay đổi
      */
-    public void broadcastBalanceUpdate(String walletAddress, String assetType, Object balance) {
-        // Đảm bảo địa chỉ ví viết thường để FE dễ bắt
-        String destination = "/topic/wallet/" + walletAddress.toLowerCase();
+    public void broadcastOrderBookUpdate(String creditId, Map<String, Object> snapshot) {
+        try {
+            // --- SỬA LỖI TẠI ĐÂY: Dùng hàm helper thay vì ép kiểu trực tiếp ---
+            OrderBookUpdateDTO update = OrderBookUpdateDTO.builder()
+                    .creditId(creditId)
+                    .bestBid(getBigDecimal(snapshot.get("bestBid"))) // ✅ Safe conversion
+                    .bestAsk(getBigDecimal(snapshot.get("bestAsk"))) // ✅ Safe conversion
+                    .bidVolume(getInteger(snapshot.get("bestBidVolume"))) // ✅ Safe conversion
+                    .askVolume(getInteger(snapshot.get("bestAskVolume"))) // ✅ Safe conversion
+                    .timestamp(LocalDateTime.now())
+                    .build();
 
-        Map<String, Object> payload = Map.of(
-                "type", "BALANCE_UPDATE",
-                "asset", assetType, // NATIVE hoặc CREDIT
-                "balance", balance,
-                "timestamp", LocalDateTime.now()
-        );
+            messagingTemplate.convertAndSend(
+                    "/topic/orderbook/" + creditId,
+                    update
+            );
 
-        messagingTemplate.convertAndSend(destination, payload);
-        log.info("💰 Sent balance update to wallet: {} (Asset: {})", walletAddress, assetType);
+            log.debug("📊 Broadcasted orderbook update for {}", creditId);
+        } catch (Exception e) {
+            log.error("❌ Failed to broadcast orderbook update for {}: {}", creditId, e.getMessage(), e);
+        }
     }
 
     /**
-     * Gửi thông báo lỗi hoặc thông báo hệ thống riêng cho User
+     * Broadcast price update (last traded price)
      */
-    public void sendPrivateNotification(String walletAddress, String message) {
-        String destination = "/topic/wallet/" + walletAddress.toLowerCase();
-        messagingTemplate.convertAndSend(destination, Map.of(
-                "type", "NOTIFICATION",
-                "message", message,
-                "timestamp", LocalDateTime.now()
-        ));
+    public void broadcastPriceUpdate(String creditId, BigDecimal price, int volume) {
+        try {
+            Map<String, Object> priceUpdate = Map.of(
+                    "creditId", creditId,
+                    "price", price,
+                    "volume", volume,
+                    "timestamp", LocalDateTime.now()
+            );
+
+            messagingTemplate.convertAndSend(
+                    "/topic/price/" + creditId,
+                    priceUpdate
+            );
+
+            log.debug("💲 Broadcasted price update: {} @ {}", creditId, price);
+        } catch (Exception e) {
+            log.error("❌ Failed to broadcast price update: {}", e.getMessage());
+        }
+    }
+
+    public void notifyOrderFailure(String userId, String orderId, String creditId, String reason) {
+        try {
+            OrderNotificationDTO notification = OrderNotificationDTO.builder()
+                    .type("ORDER_FAILED")
+                    .orderId(orderId)
+                    .creditId(creditId)
+                    .message("Order cancelled due to system error: " + reason)
+                    .timestamp(System.currentTimeMillis())
+                    .build();
+
+            // Spring sẽ map thành: /user/{userId}/queue/errors
+            messagingTemplate.convertAndSendToUser(
+                    userId,
+                    "/queue/errors",
+                    notification
+            );
+
+            log.info("Sent failure notification to user {}", userId);
+
+        } catch (Exception e) {
+            log.error("Failed to send WS notification: {}", e.getMessage());
+        }
+    }
+    // Inject NotificationRepository vào WsService
+    private final NotificationRepository notificationRepository;
+
+    public void notify(String title, String message, String type, List<String> roles, String wallet) {
+        // 1. Lưu DB (giữ nguyên, lưu single role chính nếu cần; hoặc mở rộng targetRole thành List nếu DB hỗ trợ)
+        // Giả sử lưu role đầu tiên làm đại diện, hoặc null nếu multi-role
+        String primaryRole = (roles != null && !roles.isEmpty()) ? roles.get(0) : null;
+        Notification note = notificationRepository.save(Notification.builder()
+                .title(title).message(message).type(type)
+                .targetRole(primaryRole)  // Lưu role chính (có thể null nếu multi)
+                .recipient(wallet)
+                .createdAt(LocalDateTime.now()).build());
+
+        // 2. Phân luồng gửi WebSocket
+        if (wallet != null) {
+            // Gửi riêng cá nhân: /topic/private/0xabc...
+            messagingTemplate.convertAndSend("/topic/private/" + wallet.toLowerCase(), note);
+        } else if (roles != null && !roles.isEmpty()) {
+            // Fix: Gửi cho NHỀU role - loop qua từng role
+            for (String role : roles) {
+                if (role != null && !role.trim().isEmpty()) {
+                    messagingTemplate.convertAndSend("/topic/role/" + role.toUpperCase(), note);
+                }
+            }
+        } else {
+            // Gửi toàn sàn
+            messagingTemplate.convertAndSend("/topic/public", note);
+        }
+    }
+
+
+
+
+
+    // ==================== HELPER METHODS ====================
+
+    /**
+     * Helper: Chuyển đổi object sang BigDecimal an toàn
+     */
+    private BigDecimal getBigDecimal(Object value) {
+        if (value == null) return BigDecimal.ZERO;
+        if (value instanceof BigDecimal) return (BigDecimal) value;
+        if (value instanceof String) {
+            try {
+                return new BigDecimal((String) value);
+            } catch (NumberFormatException e) {
+                log.warn("⚠️ Invalid number format for BigDecimal: {}", value);
+                return BigDecimal.ZERO;
+            }
+        }
+        if (value instanceof Integer) return BigDecimal.valueOf((Integer) value);
+        if (value instanceof Double) return BigDecimal.valueOf((Double) value);
+        if (value instanceof Long) return BigDecimal.valueOf((Long) value);
+
+        return BigDecimal.ZERO;
+    }
+
+    /**
+     * Helper: Chuyển đổi object sang Integer an toàn
+     */
+    private Integer getInteger(Object value) {
+        if (value == null) return 0;
+        if (value instanceof Integer) return (Integer) value;
+        if (value instanceof Number) return ((Number) value).intValue();
+        if (value instanceof String) {
+            try {
+                return Integer.parseInt((String) value);
+            } catch (NumberFormatException e) {
+                log.warn("⚠️ Invalid number format for Integer: {}", value);
+                return 0;
+            }
+        }
+        return 0;
     }
 }

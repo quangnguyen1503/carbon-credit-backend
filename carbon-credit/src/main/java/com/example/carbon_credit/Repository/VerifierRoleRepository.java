@@ -7,4 +7,8 @@ import java.util.List;
 
 public interface VerifierRoleRepository extends JpaRepository<VerifierRole, String> {
 
+    boolean  existsByOrganizationName(String name);
+
+    VerifierRole findByOrganizationName(String name);
+
 }

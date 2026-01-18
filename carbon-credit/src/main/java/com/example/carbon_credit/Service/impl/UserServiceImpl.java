@@ -42,14 +42,16 @@ public class UserServiceImpl implements UserService {
     public User updateProfile(UserDTO dto, String id) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("User not found"));
-
-        System.out.println(user);
         if (dto.getName() != null) {
             user.setName(dto.getName());
         }
         if (dto.getEmail() != null) {
             user.setEmail(dto.getEmail());
         }
+        if (dto.getDocumentHash() != null) {
+            user.setDocumentHash(dto.getDocumentHash());
+        }
+
 
         return userRepository.save(user);
     }
@@ -80,4 +82,6 @@ public class UserServiceImpl implements UserService {
                 UserRole.VERIFIER.equals(roleId) ||
                 UserRole.GOVERNMENT.equals(roleId);
     }
+
+
 }

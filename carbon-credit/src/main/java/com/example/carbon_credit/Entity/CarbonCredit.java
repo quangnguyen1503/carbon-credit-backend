@@ -25,6 +25,4 @@ public class CarbonCredit {
     private long issueAmount;
     private long retiredAmount;
 
-
-
 }

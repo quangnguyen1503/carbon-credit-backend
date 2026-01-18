@@ -6,6 +6,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigInteger;
 import java.time.LocalDateTime;
 
 @Entity
@@ -27,10 +28,10 @@ public class WalletCredit {
     private CarbonCredit carbonCredit;
 
     @Column(name = "available_balance", nullable = false)
-    private Long availableBalance; // Số dư Credit có thể đem bán
+    private BigInteger availableBalance; // Số dư Credit có thể đem bán
 
     @Column(name = "locked_balance", nullable = false)
-    private Long lockedBalance; // Số dư Credit đang treo ở các lệnh Sell chưa khớp
+    private BigInteger lockedBalance; // Số dư Credit đang treo ở các lệnh Sell chưa khớp
 
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;

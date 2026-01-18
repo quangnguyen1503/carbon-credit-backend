@@ -7,9 +7,7 @@ import java.math.BigInteger;
 import java.util.Optional;
 
 public interface CarbonCreditRepository extends JpaRepository<CarbonCredit, String> {
-
     Optional<CarbonCredit> findByProjectId(String projectId);
 
-
-    Optional<CarbonCredit> findByTokenId(BigInteger tokenId);
+    Optional<CarbonCredit> findByTokenId(long tokenId);
 }

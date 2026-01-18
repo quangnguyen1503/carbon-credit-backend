@@ -65,9 +65,15 @@ public class RoleRequestController {
     @PutMapping("/add-role")
     public ResponseEntity<?> addRole(@RequestBody AddRoleRequestDTO request){
         try{
-            roleRequestService.addRoleDirectly(request.getUserId(), request.getRoleName());
+            // ✅ Gọi service với 3 tham số: userId, roleName, verifierRoleId
+            roleRequestService.addRoleDirectly(
+                    request.getUserId(),
+                    request.getRoleName(),
+                    request.getVerifierRoleId()
+            );
+
             return ResponseEntity.ok("Role approved and email sent.");
-        }catch (RuntimeException e){
+        } catch (RuntimeException e){
             return ResponseEntity.badRequest().body("Approve failed: " + e.getMessage());
         }
     }

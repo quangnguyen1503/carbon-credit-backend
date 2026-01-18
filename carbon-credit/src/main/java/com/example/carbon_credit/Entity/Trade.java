@@ -38,7 +38,7 @@ public class Trade {
     @Column(name = "total_value", precision = 10, scale = 0, nullable = false)
     private BigDecimal totalValue;  // decimal(10,0)
 
-    @Column(name = "tx_hash", length = 255)
+    @Column(name = "tx_hash", length = 255, nullable = true)
     private String txHash;
 
     @Column(name = "trade_at")

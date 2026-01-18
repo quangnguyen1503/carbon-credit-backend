@@ -145,10 +145,9 @@ public class CertificateService {
             throw new RuntimeException("Request is not APPROVED");
         }
 
-        request.setStatus("ONCHAIN_DONE");  // Sửa tên status cho rõ
+        request.setStatus("ONCHAIN_DONE");
         request.setOnchainTxHash(txHash);
-        request.setNftTokenId(nftTokenId);  // Override nếu cần
-        // Không set approvedAt nữa (đã set ở approve)
+        request.setNftTokenId(nftTokenId);
 
         return certificateRepository.save(request);
     }

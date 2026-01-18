@@ -7,7 +7,6 @@ import java.util.List;
 
 public interface UserService {
     User setRole(String id , UserDTO req);
-
     User getUserById(String id);
     User updateProfile(UserDTO dto, String id);
 

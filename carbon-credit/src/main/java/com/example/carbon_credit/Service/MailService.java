@@ -72,7 +72,6 @@ public class MailService {
         message.setText(
                 "Dear User,\n\n" +
                         "Your request for role '" + Role + "' has been rejected.\n" +
-                        "Reason: [Add reason if available]\n\n" +
                         "Please try again or contact support.\n\n" +
                         "Thank you!\nCarbon Credit Team"
         );
@@ -80,6 +79,47 @@ public class MailService {
         try {
             mailSender.send(message);
             log.info("Reject email sent to: {}", toEmail);
+        } catch (Exception e) {
+            log.error("Failed to send reject email to {}: {}", toEmail, e.getMessage(), e);
+            throw new RuntimeException("Reject email failed: " + e.getMessage());
+        }
+    }
+
+    public void sendRemovetRole(String toEmail) {
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setFrom(systemEmail);
+        message.setTo(toEmail);
+        message.setSubject("Role remove");
+        message.setText(
+                "Dear User,\n\n" +
+                        "Your has been deleted role by admin.\n" +
+                        "Please try again or contact support.\n\n" +
+                        "Thank you!\nCarbon Credit Team"
+        );
+
+        try {
+            mailSender.send(message);
+            log.info("Reject email sent to: {}", toEmail);
+        } catch (Exception e) {
+            log.error("Failed to send reject email to {}: {}", toEmail, e.getMessage(), e);
+            throw new RuntimeException("Reject email failed: " + e.getMessage());
+        }
+    }
+
+    public void sendApprovedRole(String toEmail, String Role) {
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setFrom(systemEmail);
+        message.setTo(toEmail);
+        message.setSubject("Role Request Approved");
+        message.setText(
+                "Dear User,\n\n" +
+                        "Your request for role '" + Role + "' has been approved.\n" +
+                        "Thank you!\nCarbon Credit Team"
+        );
+
+        try {
+            mailSender.send(message);
+            log.info("Approved email sent to: {}", toEmail);
         } catch (Exception e) {
             log.error("Failed to send reject email to {}: {}", toEmail, e.getMessage(), e);
             throw new RuntimeException("Reject email failed: " + e.getMessage());
