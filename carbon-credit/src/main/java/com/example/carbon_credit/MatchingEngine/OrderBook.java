@@ -317,7 +317,8 @@ public class OrderBook {
             bidHeap.insert(order.getPrice());
             invalidateBidCache();
         }
-        level.addOrder(order, orderNode);
+        int currentAmount = remainingAmounts.getOrDefault(order.getOrderId(), order.getAmount());
+        level.addOrder(order, orderNode, currentAmount);
     }
 
     private void addToAskLevel(PlaceOrderCommandDTO order, OrderNode orderNode) {
@@ -328,7 +329,8 @@ public class OrderBook {
             askHeap.insert(order.getPrice());
             invalidateAskCache();
         }
-        level.addOrder(order, orderNode);
+        int currentAmount = remainingAmounts.getOrDefault(order.getOrderId(), order.getAmount());
+        level.addOrder(order, orderNode, currentAmount);
     }
 
     private void removeFromBidLevel(PlaceOrderCommandDTO order) {
@@ -394,9 +396,9 @@ public class OrderBook {
             return orders.isEmpty();
         }
 
-        public void addOrder(PlaceOrderCommandDTO order, OrderNode orderNode) {
+        public void addOrder(PlaceOrderCommandDTO order, OrderNode orderNode, int currentAmount) {
             orders.addLast(order);
-            totalVolume += order.getAmount();
+            totalVolume += currentAmount;
             lastUpdated = LocalDateTime.now();
         }
 
