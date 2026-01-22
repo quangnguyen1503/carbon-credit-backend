@@ -81,11 +81,6 @@ public class ProjectController {
         return projectService.getProjectApproved(ProjectStatus.APPROVED);
     }
 
-    @GetMapping("/ProjectApproved")
-    public List<Project> getAllProjectApprovedd() {
-        return projectService.getAllProjectSubmited(ProjectStatus.APPROVED);
-    }
-
     @GetMapping("/processed-project")
     public List<Project> getProcessedProject() {
         return projectService.getProjectsByStatuses(List.of(ProjectStatus.APPROVED, ProjectStatus.REJECTED_BY_GOV));

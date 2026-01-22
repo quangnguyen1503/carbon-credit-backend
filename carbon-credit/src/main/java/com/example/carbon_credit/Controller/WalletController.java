@@ -37,12 +37,4 @@ public class WalletController {
         return walletService.getMyNatives(principal.getName());
     }
 
-    @GetMapping("/my-credits")
-    public List<MyCreditResponse> myCredits (Principal principal){
-        return walletService.getMyCredits(principal.getName());
-    }
-
-
-
-
 }
