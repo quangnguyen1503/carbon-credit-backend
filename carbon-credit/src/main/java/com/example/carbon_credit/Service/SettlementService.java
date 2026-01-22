@@ -75,11 +75,9 @@ public class SettlementService {
         try {
             for (TradeEventDTO tradeEvent : currentBatch) {
                 try {
-                    Order buyOrder = orderRepository.findById(tradeEvent.getBuyOrderId()).orElseThrow(
-                            () -> new IllegalArgumentException("Buy order not found: " + tradeEvent.getBuyOrderId()));
+                    Order buyOrder = orderRepository.findById(tradeEvent.getBuyOrderId()).orElseThrow(() -> new IllegalArgumentException("Buy order not found: " + tradeEvent.getBuyOrderId()));
 
-                    Order sellOrder = orderRepository.findById(tradeEvent.getSellOrderId()).orElseThrow(
-                            () -> new IllegalArgumentException("Sell order not found: " + tradeEvent.getSellOrderId()));
+                    Order sellOrder = orderRepository.findById(tradeEvent.getSellOrderId()).orElseThrow(() -> new IllegalArgumentException("Sell order not found: " + tradeEvent.getSellOrderId()));
 
                     // userId chính là wallet address
                     String buyerAddress = buyOrder.getUserId().trim().toLowerCase();
@@ -92,8 +90,7 @@ public class SettlementService {
                     log.info("   👉 On-Chain Owner:  {}", onChainOwner);
 
                     if (!buyerAddress.equals(onChainOwner)) {
-                        log.error("🚨 MISMATCH DETECTED! Java says buyer is {}, but Blockchain says lock belongs to {}",
-                                buyerAddress, onChainOwner);
+                        log.error("🚨 MISMATCH DETECTED! Java says buyer is {}, but Blockchain says lock belongs to {}", buyerAddress, onChainOwner);
                         invalidEvents.add(tradeEvent);
                         continue;
                     }
@@ -101,8 +98,7 @@ public class SettlementService {
                     // Calculate amounts
                     BigInteger creditTokenId = new BigInteger(tradeEvent.getCreditId());
                     BigInteger creditAmount = BigInteger.valueOf(tradeEvent.getAmount());
-                    BigInteger priceWei = tradeEvent.getPrice().multiply(new BigDecimal("1000000000000000000"))
-                            .toBigInteger();
+                    BigInteger priceWei = tradeEvent.getPrice().multiply(new BigDecimal("1000000000000000000")).toBigInteger();
                     BigInteger totalValue = priceWei.multiply(creditAmount);
 
                     // Create trade struct
@@ -131,8 +127,7 @@ public class SettlementService {
             }
 
             // Call smart contract batch settlement
-            TransactionReceipt receipt = contractService.processBatchSettlement(BigInteger.valueOf(batchId), trades,
-                    buyOrderIds, sellOrderIds);
+            TransactionReceipt receipt = contractService.processBatchSettlement(BigInteger.valueOf(batchId), trades, buyOrderIds, sellOrderIds);
             String txHash = receipt.getTransactionHash();
 
             // ✅ UPDATE DATABASE: Save Trade + Update Order Status (Atomic)
@@ -155,13 +150,7 @@ public class SettlementService {
 
         for (TradeEventDTO event : tradeEvents) {
             // 1. Save Trade History
-            Trade trade = Trade.builder()
-                    .id(event.getTradeId()).buyOrderId(event.getBuyOrderId()).sellOrderId(event.getSellOrderId())
-                    .creditId(event.getCreditId())
-                    .amount(event.getAmount())
-                    .price(event.getPrice())
-                    .totalValue(event.getTotalValue()).txHash(txHash).tradeAt(LocalDateTime.now()).status("SETTLED")
-                    .build();
+            Trade trade = Trade.builder().id(event.getTradeId()).buyOrderId(event.getBuyOrderId()).sellOrderId(event.getSellOrderId()).creditId(event.getCreditId()).amount(event.getAmount()).price(event.getPrice()).totalValue(event.getTotalValue()).txHash(txHash).tradeAt(LocalDateTime.now()).status("SETTLED").build();
             tradesToSave.add(trade);
 
             // 2. Update Buy Order
@@ -186,9 +175,11 @@ public class SettlementService {
 
         if (order.getRemainingAmount() == 0) {
             order.setStatus("SETTLEMENT");
-            log.info("   ✅ Order {} -> SETTLEMENT", order.getId());
+            order.setUpdatedAt(LocalDateTime.now());
+            log.info(" ✅ Order {} -> SETTLEMENT", order.getId());
         } else {
             order.setStatus("PARTIALLY_FILLED");
+            order.setUpdatedAt(LocalDateTime.now());
             log.info("   🔄 Order {} -> Remaining: {}", order.getId(), newRemaining);
         }
     }
@@ -224,12 +215,7 @@ public class SettlementService {
             order.setUpdatedAt(LocalDateTime.now());
             orderRepository.save(order);
 
-            wsService.notifyOrderFailure(
-                    order.getUserId(),
-                    order.getId(),
-                    order.getCreditId(),
-                    "Settlement transaction failed on Blockchain. Funds unlocked." + reason
-            );
+            wsService.notifyOrderFailure(order.getUserId(), order.getId(), order.getCreditId(), "Settlement transaction failed on Blockchain. Funds unlocked." + reason);
         });
     }
 }

@@ -76,6 +76,10 @@ public class ProjectController {
     public List<Project> getAllProjectApproved() {
         return projectService.getAllProjectSubmited(ProjectStatus.VERIFIED);
     }
+    @GetMapping("/ProjectApproved")
+    public List<ProjectResponse> getProject() {
+        return projectService.getProjectApproved(ProjectStatus.APPROVED);
+    }
 
     @GetMapping("/ProjectApproved")
     public List<Project> getAllProjectApprovedd() {

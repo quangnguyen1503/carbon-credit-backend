@@ -19,11 +19,13 @@ public interface WalletCreditRepository extends JpaRepository<WalletCredit, Stri
                     c.id,
                     c.tokenId,
                     c.projectId,
+                    p.name,
                     wc.availableBalance
                 )
                 FROM WalletCredit wc
                 JOIN wc.wallet w
                 JOIN wc.carbonCredit c
+                JOIN Project p ON p.id = c.projectId
                 WHERE w.address = :walletAddress
                   AND wc.availableBalance > 0
                 ORDER BY c.tokenId

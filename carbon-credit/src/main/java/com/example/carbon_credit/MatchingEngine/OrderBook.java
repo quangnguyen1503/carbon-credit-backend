@@ -116,6 +116,8 @@ public class OrderBook {
 
             // Match with orders at this price level
             Iterator<PlaceOrderCommandDTO> iterator = priceLevel.getOrders().iterator();
+            boolean matchedAnyAtThisLevel = false;
+
             while (iterator.hasNext() && remaining > 0) {
                 PlaceOrderCommandDTO oppOrder = iterator.next();
 
@@ -163,6 +165,7 @@ public class OrderBook {
                         .build();
 
                 trades.add(trade);
+                matchedAnyAtThisLevel = true;
 
                 // Update remaining amounts
                 remaining -= matchAmount;
@@ -171,7 +174,7 @@ public class OrderBook {
                 remainingAmounts.put(newOrder.getOrderId(), remaining);
                 remainingAmounts.put(oppOrder.getOrderId(), oppRemaining);
 
-                log.info("✅ Matched: {} x {} @ {}", matchAmount, creditId, bestOppositePrice);
+                log.info(" Matched: {} x {} @ {}", matchAmount, creditId, bestOppositePrice);
 
                 // Remove filled order
                 if (oppRemaining <= 0) {
@@ -195,6 +198,11 @@ public class OrderBook {
                     bidLevels.remove(bestOppositePrice);
                     invalidateBidCache();
                 }
+            } else if (!matchedAnyAtThisLevel) {
+                log.warn(
+                        " Self-match prevention blocked execution at price {}. Stopping priority match for order {}.",
+                        bestOppositePrice, newOrder.getOrderId());
+                break;
             }
         }
 

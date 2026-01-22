@@ -13,5 +13,6 @@ public class MyCreditResponse {
     private String creditId;
     private Long tokenId;
     private String projectId;
+    private String projectName;
     private BigInteger availableBalance;
 }

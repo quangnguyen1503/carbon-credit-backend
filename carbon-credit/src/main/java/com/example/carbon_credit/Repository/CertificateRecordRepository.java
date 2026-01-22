@@ -13,5 +13,4 @@ import java.util.Optional;
 
 public interface CertificateRecordRepository extends JpaRepository<CertificateRecord, String> {
 
-
 }
