@@ -51,6 +51,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/projects/save").authenticated()  // Public nếu cần
                         .requestMatchers("/api/projects/ProjectSubmited").authenticated()
                         .requestMatchers("/api/projects/ProjectVerified").authenticated()
+                        .requestMatchers("/api/projects/ProjectApproved").permitAll()
                         .requestMatchers("/api/projects/MyProject").authenticated()
                         .requestMatchers("/api/projects/*/verify").authenticated()  // Bảo vệ verify
                         .requestMatchers("/api/projects/*/approved").authenticated()

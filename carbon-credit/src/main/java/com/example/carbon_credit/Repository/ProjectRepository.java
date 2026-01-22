@@ -1,8 +1,8 @@
 package com.example.carbon_credit.Repository;
 
 import com.example.carbon_credit.DTO.ProjectResponse;
+import com.example.carbon_credit.Entity.CertificateRecord;
 import com.example.carbon_credit.Entity.Project;
-import com.example.carbon_credit.constants.ProjectStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -15,7 +15,49 @@ import java.util.Optional;
 public interface ProjectRepository extends JpaRepository<Project, String> {
     // ✅ Lấy danh sách project của 1 user + issue/retire amount
     @Query("""
-        SELECT new com.example.carbon_credit.DTO.ProjectResponse(
+                SELECT new com.example.carbon_credit.DTO.ProjectResponse(
+                    p.id,
+                    p.name,
+                    p.vintage,
+                    p.location,
+                    p.type,
+                    p.expectedCredits,
+                    p.description,
+                    p.ipfsHash,
+                    p.nftTokenId,
+                    p.createdAt,
+                    p.status,
+                    p.onchainHash,
+                    COALESCE(SUM(c.issueAmount), 0),
+                    COALESCE(SUM(c.retiredAmount), 0),
+                    max(c.tokenId)
+                )
+                FROM Project p
+                LEFT JOIN CarbonCredit c
+                    ON c.projectId = p.id
+                WHERE p.ownerId = :ownerId
+                GROUP BY
+                    p.id,
+                    p.name,
+                    p.vintage,
+                    p.location,
+                    p.type,
+                    p.expectedCredits,
+                    p.description,
+                    p.ipfsHash,
+                    p.nftTokenId,
+                    p.createdAt,
+                    p.status,
+                    p.onchainHash
+                ORDER BY p.createdAt DESC
+            """)
+    List<ProjectResponse> findAllByOwnerId(@Param("ownerId") String ownerId);
+
+
+    List<Project> findByStatus(String status);
+
+    @Query("""
+            SELECT new com.example.carbon_credit.DTO.ProjectResponse(
             p.id,
             p.name,
             p.vintage,
@@ -29,12 +71,13 @@ public interface ProjectRepository extends JpaRepository<Project, String> {
             p.status,
             p.onchainHash,
             COALESCE(SUM(c.issueAmount), 0),
-            COALESCE(SUM(c.retiredAmount), 0)
+            COALESCE(SUM(c.retiredAmount), 0),
+            max(c.tokenId)
         )
         FROM Project p
         LEFT JOIN CarbonCredit c
             ON c.projectId = p.id
-        WHERE p.ownerId = :ownerId
+        WHERE p.status = :status
         GROUP BY
             p.id,
             p.name,
@@ -50,13 +93,9 @@ public interface ProjectRepository extends JpaRepository<Project, String> {
             p.onchainHash
         ORDER BY p.createdAt DESC
     """)
-    List<ProjectResponse> findAllByOwnerId(@Param("ownerId") String ownerId);
+    List<ProjectResponse> getProjectApproved(String status);
 
-
-    // ✅ Lấy project theo status (Entity)
-    List<Project> findByStatus(String status);
-
-    List<Project> findByStatusAndVerifierRoleId(String status ,String verifierRoleId);
+    List<Project> findByStatusAndVerifierRoleId(String status, String verifierRoleId);
 
     Optional<Project> findById(String projectId);
 
@@ -64,5 +103,6 @@ public interface ProjectRepository extends JpaRepository<Project, String> {
 
 
     List<Project> findByOwnerId(String userId);
+
 }
 

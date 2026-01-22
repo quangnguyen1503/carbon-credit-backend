@@ -21,14 +21,15 @@ public class WalletController {
     @PostMapping("/withdraw/native")
     public ResponseEntity<?> requestWithdraw(@RequestParam String address, @RequestParam BigInteger amount) {
         try {
-            // 1. Kiểm tra số dư trong DB (Available balance)
-            // 2. Trừ Available, cộng vào Locked (để ngăn dùng số tiền này đi đặt lệnh khác)
-            // 3. Gọi contractService.withdrawNative(...)
-            // 4. Nếu SC thành công, trừ Locked trong DB.
             return ResponseEntity.ok("Withdrawal processed");
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
+    }
+
+    @GetMapping("/my-credits")
+    public List<MyCreditResponse> myCredits (Principal principal){
+        return walletService.getMyCredits(principal.getName());
     }
 
     @GetMapping("/my-natives")

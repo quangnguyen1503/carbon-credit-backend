@@ -56,7 +56,7 @@ public class KafkaConsumerService {
         long startTime = System.nanoTime();
 
         // Log rõ ràng để debug thứ tự xử lý
-        log.info("[P-{}|O-{}] Processing Order: {} | Type: {} | Credit: {}",
+        log.info("📥 [Kafka CONSUMER] [P-{}|O-{}] RECEIVED Order: {} | Type: {} | CreditId: {}",
                 partition, offset, command.getOrderId(), command.getOrderType(), command.getCreditId());
 
         try {
@@ -85,14 +85,12 @@ public class KafkaConsumerService {
             }
 
             // 3. Cập nhật UI (OrderBook Snapshot)
+            log.debug("📡 Triggering OrderBook Broadcast for CreditId: {}", command.getCreditId());
             broadcastOrderBookChange(command.getCreditId());
 
             // 4. Commit offset khi mọi thứ thành công
             ack.acknowledge();
 
-            // Monitor hiệu năng
-            long duration = (System.nanoTime() - startTime) / 1000;
-            log.debug("Processing time: {} us", duration);
 
         } catch (Exception e) {
             log.error("CRITICAL ERROR processing order {}: {}", command.getOrderId(), e.getMessage(), e);
@@ -194,7 +192,6 @@ public class KafkaConsumerService {
         }
     }
 
-
     private void processEvent(BlockchainEventDTO event) {
         String eventType = event.getEventType();
 
@@ -255,12 +252,17 @@ public class KafkaConsumerService {
 
     private void broadcastOrderBookChange(String creditId) {
         try {
+            long start = System.currentTimeMillis();
             Map<String, Object> snapshot = matchingEngine.getOrderBook(creditId);
             if (snapshot != null) {
+                log.debug("📸 Snapshot retrieved for {}. Sending to WsService...", creditId);
                 wsService.broadcastOrderBookUpdate(creditId, snapshot);
+                log.debug("✅ OrderBook Broadcast sent to WS (took {}ms)", System.currentTimeMillis() - start);
+            } else {
+                log.warn("⚠️ Snapshot is NULL for creditId: {}. Skipping broadcast.", creditId);
             }
         } catch (Exception e) {
-            log.warn("Failed to broadcast orderbook update: {}", e.getMessage());
+            log.error("❌ Failed to broadcast orderbook update for {}: {}", creditId, e.getMessage(), e);
         }
     }
 }

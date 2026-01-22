@@ -75,11 +75,15 @@ public class WsService {
                     .timestamp(LocalDateTime.now())
                     .build();
 
+            // LOG Payload summary
+            log.debug("📡 WS Sending OrderBook Update for {}: Bids={}, Asks={}, BestBid={}, BestAsk={}",
+                    creditId, bids.size(), asks.size(), update.getBestBid(), update.getBestAsk());
+
             messagingTemplate.convertAndSend(
                     "/topic/orderbook/" + creditId,
                     update);
 
-            log.debug("📊 Broadcasted orderbook update for {}", creditId);
+            log.debug("✅ WS Message SENT to /topic/orderbook/{}", creditId);
         } catch (Exception e) {
             log.error("❌ Failed to broadcast orderbook update for {}: {}", creditId, e.getMessage(), e);
         }
@@ -128,16 +132,18 @@ public class WsService {
             log.error("Failed to send WS notification: {}", e.getMessage());
         }
     }
+
     // Inject NotificationRepository vào WsService
     private final NotificationRepository notificationRepository;
 
     public void notify(String title, String message, String type, List<String> roles, String wallet) {
-        // 1. Lưu DB (giữ nguyên, lưu single role chính nếu cần; hoặc mở rộng targetRole thành List nếu DB hỗ trợ)
+        // 1. Lưu DB (giữ nguyên, lưu single role chính nếu cần; hoặc mở rộng targetRole
+        // thành List nếu DB hỗ trợ)
         // Giả sử lưu role đầu tiên làm đại diện, hoặc null nếu multi-role
         String primaryRole = (roles != null && !roles.isEmpty()) ? roles.get(0) : null;
         Notification note = notificationRepository.save(Notification.builder()
                 .title(title).message(message).type(type)
-                .targetRole(primaryRole)  // Lưu role chính (có thể null nếu multi)
+                .targetRole(primaryRole) // Lưu role chính (có thể null nếu multi)
                 .recipient(wallet)
                 .createdAt(LocalDateTime.now()).build());
 
@@ -157,10 +163,6 @@ public class WsService {
             messagingTemplate.convertAndSend("/topic/public", note);
         }
     }
-
-
-
-
 
     /**
      * Gửi thông báo hủy lệnh thành công cho user

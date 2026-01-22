@@ -29,6 +29,8 @@ public interface ProjectService {
 
     List<Project> getProjectsByStatuses(List<String> statuses);
 
+    List<ProjectResponse> getProjectApproved(String status);
+
     ProjectWithCreditDTO getProjectWithCredit(String projectId);
     Project getProjectById(String projectId);
 

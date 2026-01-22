@@ -1,9 +1,6 @@
 package com.example.carbon_credit.Service;
 
-import com.example.carbon_credit.DTO.BlockchainEventDTO;
-import com.example.carbon_credit.DTO.CertificateDetailResponse;
-import com.example.carbon_credit.DTO.CertificateRecordDTO;
-import com.example.carbon_credit.DTO.CertificateResponse;
+import com.example.carbon_credit.DTO.*;
 import com.example.carbon_credit.Entity.Certificate;
 import com.example.carbon_credit.Entity.CertificateRecord;
 import com.example.carbon_credit.Entity.ProcessedTransaction;
@@ -41,7 +38,7 @@ public class CertificateService {
     @Autowired
     WalletCreditRepository walletCreditRepository;
     @Autowired
-    CarbonCreditRepository carbonCreditRepository;
+    ProjectRepository projectRepository;
 
     @Autowired
     CertificateRecordRepository certificateRecordRepository;
@@ -86,27 +83,32 @@ public class CertificateService {
     }
 
     public CertificateDetailResponse getDetail(String certId) {
+        CertificateDetailResponse detail =
+                certificateRepository.findCertificateDetailById(certId)
+                        .orElseThrow(() ->
+                                new RuntimeException("Certificate not found: " + certId)
+                        );
 
-        Certificate cert = certificateRepository.findById(certId).orElseThrow();
+        List<Object[]> rows =
+                certificateRepository.findCertificateRecords(certId);
 
-        CertificateDetailResponse res = new CertificateDetailResponse();
-        res.setCertificateId(cert.getId());
-        res.setUserId(cert.getUserId());
-        res.setTotalAmount(cert.getTotalAmount());
-        res.setOnchainTxHash(cert.getTxHash());
-        res.setNftTokenId(cert.getNftTokenId());
-        res.setCreatedAt(cert.getCreatedAt());
+        List<CertificateDetailResponse.RecordDetail> records = rows.stream()
+                .map(r -> {
+                    CertificateDetailResponse.RecordDetail rd =
+                            new CertificateDetailResponse.RecordDetail();
+                    rd.setTokenId((BigInteger) r[0]);
+                    rd.setAmount((BigInteger) r[1]);
+                    rd.setProjectName((String) r[2]);
+                    return rd;
+                })
+                .toList();
 
-        List<CertificateDetailResponse.RecordDetail> records = cert.getRecords().stream().map(r -> {
-            CertificateDetailResponse.RecordDetail d = new CertificateDetailResponse.RecordDetail();
-            d.setTokenId(r.getTokenId());
-            d.setAmount(r.getAmount());
-            return d;
-        }).toList();
+        detail.setRecords(records);
 
-        res.setRecords(records);
-        return res;
+        return detail;
     }
+
+
 
     public Page<Certificate> getCertificateWithPaginationAndSort(String status, int pageNumber, int pageSize, String sortBy, String sortDirection) {
         Sort sort = Sort.by(sortBy);
@@ -183,11 +185,10 @@ public class CertificateService {
                 log.error("❌ Invalid Credit Token Id event data");
                 return;
             }
-            List<TypeReference<Type>> params = Arrays.asList(
-                    (TypeReference) new TypeReference<Uint256>() {},
-                    (TypeReference) new TypeReference<Uint256>() {},
-                    (TypeReference) new TypeReference<Uint256>() {}
-            );
+            List<TypeReference<Type>> params = Arrays.asList((TypeReference) new TypeReference<Uint256>() {
+            }, (TypeReference) new TypeReference<Uint256>() {
+            }, (TypeReference) new TypeReference<Uint256>() {
+            });
 
             List<Type> decoded = BlockchainHelper.decodeAnyData(event.getData(), params);
 
@@ -238,19 +239,17 @@ public class CertificateService {
             log.error("Failed to fetch details from chain", e);
         }
     }
+
     private void updateUserBalance(String userAddress, BigInteger creditTokenId, BigInteger amount) {
         Object lock = walletLocks.computeIfAbsent(userAddress.toLowerCase(), k -> new Object());
 
         synchronized (lock) {
-            WalletCredit walletCredit = walletCreditRepository
-                    .findByWalletAddressAndTokenId(userAddress, creditTokenId.longValue())
-                    .orElseThrow(() -> new RuntimeException("Wallet Credit not found for Token: " + creditTokenId));
+            WalletCredit walletCredit = walletCreditRepository.findByWalletAddressAndTokenId(userAddress, creditTokenId.longValue()).orElseThrow(() -> new RuntimeException("Wallet Credit not found for Token: " + creditTokenId));
 
             BigInteger currentAvailable = walletCredit.getAvailableBalance();
 
             if (currentAvailable.compareTo(amount) < 0) {
-                log.warn("Data Inconsistency: DB Balance ({}) < Retired Amount ({}) for User {}",
-                        currentAvailable, amount, userAddress);
+                log.warn("Data Inconsistency: DB Balance ({}) < Retired Amount ({}) for User {}", currentAvailable, amount, userAddress);
 
                 walletCredit.setAvailableBalance(currentAvailable.subtract(amount).max(BigInteger.ZERO));
             } else {

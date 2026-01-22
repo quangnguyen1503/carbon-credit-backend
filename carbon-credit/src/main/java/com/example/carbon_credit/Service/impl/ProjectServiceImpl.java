@@ -112,6 +112,10 @@ public class ProjectServiceImpl implements ProjectService {
         return projectRepository.findByStatus(status);
     }
 
+    public List<ProjectResponse> getProjectApproved(String status) {
+        return projectRepository.getProjectApproved(status);
+    }
+
     public List<Project> getProjectsByStatuses(List<String> statuses) {
         return projectRepository.findByStatusIn(statuses);
     }
@@ -125,6 +129,7 @@ public class ProjectServiceImpl implements ProjectService {
     public Optional<Project> getProjectDetail(String id) {
         return projectRepository.findById(id);
     }
+
 
     @Override
     public List<ProjectResponse> getMyProject(String userId) {

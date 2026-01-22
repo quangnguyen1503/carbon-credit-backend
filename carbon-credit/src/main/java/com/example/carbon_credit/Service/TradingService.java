@@ -108,6 +108,7 @@ public class TradingService {
                 .remainingAmount(request.getAmount())
                 .status("PENDING")
                 .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
                 .build();
 
         // Lưu DB trước

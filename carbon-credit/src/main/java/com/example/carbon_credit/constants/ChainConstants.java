@@ -16,7 +16,7 @@ public class ChainConstants {
     public static final String Admin_Removed_Hash = "0xa3b62bc36326052d97ea62d63c3d60308ed4c3ea8ac079dd8499f1e9c4f80c0f";
     public static final String Government_Added_Hash = "0x3b72f0d97b927d43f0f6f2d85f081ef76123de67b17444225cfd99359a138aab";
     public static final String Government_Removed_Hash = "0x09e7453b60e6f6a2e5bef680fb002f94eff6650dd37279d3a32ac251c51fa850";
-    public static final String Organization_Verified_Hash = "0x549d40a34f01c931095d217eace0f976fc10b35869308c9333491bb6a96a67be";
+    public static final String Organization_Verified_Hash = "0x6d9fac1782b03778ad5aa47a795806df6ba72e0b6d87312cc52c8d431e87e676";
     public static final String Organization_Revoked_Hash = "0x8a22fae4569bf2ed61be7a5768800f97175fc239f44f3dd3a38c402323f3c7f1";
     public static final String CreditQuota_Updated_Hash = "0x7eb5cc61185a147f337fda154771e4eafee28ca265d95d75b48199db309ee10e";
     public static final String Project_Approved_Hash = "0x4bb64b043b2013f1fbb5ee3c42ac0d4172b266dfa63dd3ec6bee6937935ce56a";

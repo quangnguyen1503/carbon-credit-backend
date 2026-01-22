@@ -26,13 +26,13 @@ public class MatchingEngine {
 
         // Validate command
         if (!validateOrder(command)) {
-            log.error("❌ Invalid order: {}", command);
+            log.error("Invalid order: {}", command);
             return new ArrayList<>();
         }
 
-        // Lấy hoặc tạo OrderBook cho creditId này
+        // Lấy hoặc tạo OrderBook cho creditId
         OrderBook orderBook = orderBooks.computeIfAbsent(creditId, k -> {
-            log.info("🆕 Creating new OrderBook for creditId: {}", k);
+            log.info("Creating new OrderBook for creditId: {}", k);
             return new OrderBook(k);
         });
 
@@ -48,9 +48,9 @@ public class MatchingEngine {
         List<TradeEventDTO> trades = orderBook.matchOrder(command);
 
         if (trades.isEmpty()) {
-            log.debug("⏳ Order {} added to book, no immediate match", command.getOrderId());
+            log.debug("Order {} added to book, no immediate match", command.getOrderId());
         } else {
-            log.info("✅ Order {} matched {} trades", command.getOrderId(), trades.size());
+            log.info("Order {} matched {} trades", command.getOrderId(), trades.size());
         }
 
         return trades;
