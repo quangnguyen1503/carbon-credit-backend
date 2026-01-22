@@ -57,7 +57,8 @@ public class SettlementService {
         List<TradeEventDTO> currentBatch;
 
         synchronized (this) {
-            if (batchQueue.isEmpty()) return;
+            if (batchQueue.isEmpty())
+                return;
             currentBatch = new ArrayList<>(batchQueue);
             batchQueue.clear();
         }
@@ -75,9 +76,11 @@ public class SettlementService {
         try {
             for (TradeEventDTO tradeEvent : currentBatch) {
                 try {
-                    Order buyOrder = orderRepository.findById(tradeEvent.getBuyOrderId()).orElseThrow(() -> new IllegalArgumentException("Buy order not found: " + tradeEvent.getBuyOrderId()));
+                    Order buyOrder = orderRepository.findById(tradeEvent.getBuyOrderId()).orElseThrow(
+                            () -> new IllegalArgumentException("Buy order not found: " + tradeEvent.getBuyOrderId()));
 
-                    Order sellOrder = orderRepository.findById(tradeEvent.getSellOrderId()).orElseThrow(() -> new IllegalArgumentException("Sell order not found: " + tradeEvent.getSellOrderId()));
+                    Order sellOrder = orderRepository.findById(tradeEvent.getSellOrderId()).orElseThrow(
+                            () -> new IllegalArgumentException("Sell order not found: " + tradeEvent.getSellOrderId()));
 
                     // userId chính là wallet address
                     String buyerAddress = buyOrder.getUserId().trim().toLowerCase();
@@ -85,12 +88,13 @@ public class SettlementService {
 
                     String onChainOwner = contractService.getLockedBalanceOwner(tradeEvent.getBuyOrderId());
 
-                    log.info("🕵️‍♂️ DETECTIVE MODE - Order: {}", tradeEvent.getBuyOrderId());
-                    log.info("   👉 Java DB Buyer:   {}", buyerAddress);
-                    log.info("   👉 On-Chain Owner:  {}", onChainOwner);
+                    log.info("DETECTIVE MODE - Order: {}", tradeEvent.getBuyOrderId());
+                    log.info("Java DB Buyer:   {}", buyerAddress);
+                    log.info(" On-Chain Owner:  {}", onChainOwner);
 
                     if (!buyerAddress.equals(onChainOwner)) {
-                        log.error("🚨 MISMATCH DETECTED! Java says buyer is {}, but Blockchain says lock belongs to {}", buyerAddress, onChainOwner);
+                        log.error("MISMATCH DETECTED! Java says buyer is {}, but Blockchain says lock belongs to {}",
+                                buyerAddress, onChainOwner);
                         invalidEvents.add(tradeEvent);
                         continue;
                     }
@@ -98,7 +102,8 @@ public class SettlementService {
                     // Calculate amounts
                     BigInteger creditTokenId = new BigInteger(tradeEvent.getCreditId());
                     BigInteger creditAmount = BigInteger.valueOf(tradeEvent.getAmount());
-                    BigInteger priceWei = tradeEvent.getPrice().multiply(new BigDecimal("1000000000000000000")).toBigInteger();
+                    BigInteger priceWei = tradeEvent.getPrice().multiply(new BigDecimal("1000000000000000000"))
+                            .toBigInteger();
                     BigInteger totalValue = priceWei.multiply(creditAmount);
 
                     // Create trade struct
@@ -127,7 +132,8 @@ public class SettlementService {
             }
 
             // Call smart contract batch settlement
-            TransactionReceipt receipt = contractService.processBatchSettlement(BigInteger.valueOf(batchId), trades, buyOrderIds, sellOrderIds);
+            TransactionReceipt receipt = contractService.processBatchSettlement(BigInteger.valueOf(batchId), trades,
+                    buyOrderIds, sellOrderIds);
             String txHash = receipt.getTransactionHash();
 
             // ✅ UPDATE DATABASE: Save Trade + Update Order Status (Atomic)
@@ -145,23 +151,30 @@ public class SettlementService {
     @Transactional
     protected void saveSettledTradesToDB(List<TradeEventDTO> tradeEvents, String txHash) {
         List<Trade> tradesToSave = new ArrayList<>();
-        // Dùng Map để đảm bảo nếu 1 Order khớp nhiều lần trong 1 batch, chúng ta không bị ghi đè dữ liệu cũ
+
         Map<String, Order> ordersMap = new HashMap<>();
 
         for (TradeEventDTO event : tradeEvents) {
             // 1. Save Trade History
-            Trade trade = Trade.builder().id(event.getTradeId()).buyOrderId(event.getBuyOrderId()).sellOrderId(event.getSellOrderId()).creditId(event.getCreditId()).amount(event.getAmount()).price(event.getPrice()).totalValue(event.getTotalValue()).txHash(txHash).tradeAt(LocalDateTime.now()).status("SETTLED").build();
+            Trade trade = Trade.builder().id(event.getTradeId()).buyOrderId(event.getBuyOrderId())
+                    .sellOrderId(event.getSellOrderId()).creditId(event.getCreditId()).amount(event.getAmount())
+                    .price(event.getPrice()).totalValue(event.getTotalValue()).txHash(txHash)
+                    .tradeAt(LocalDateTime.now()).status("SETTLED").build();
             tradesToSave.add(trade);
 
             // 2. Update Buy Order
-            orderRepository.findById(event.getBuyOrderId()).ifPresent(order -> {
-                updateOrderState(order, event.getAmount());
-            });
+            Order buyOrder = ordersMap.computeIfAbsent(event.getBuyOrderId(),
+                    id -> orderRepository.findById(id).orElse(null));
+            if (buyOrder != null) {
+                updateOrderState(buyOrder, event.getAmount());
+            }
 
             // 3. Update Sell Order
-            orderRepository.findById(event.getSellOrderId()).ifPresent(order -> {
-                updateOrderState(order, event.getAmount());
-            });
+            Order sellOrder = ordersMap.computeIfAbsent(event.getSellOrderId(),
+                    id -> orderRepository.findById(id).orElse(null));
+            if (sellOrder != null) {
+                updateOrderState(sellOrder, event.getAmount());
+            }
         }
 
         tradeRepository.saveAll(tradesToSave);
@@ -215,7 +228,8 @@ public class SettlementService {
             order.setUpdatedAt(LocalDateTime.now());
             orderRepository.save(order);
 
-            wsService.notifyOrderFailure(order.getUserId(), order.getId(), order.getCreditId(), "Settlement transaction failed on Blockchain. Funds unlocked." + reason);
+            wsService.notifyOrderFailure(order.getUserId(), order.getId(), order.getCreditId(),
+                    "Settlement transaction failed on Blockchain. Funds unlocked." + reason);
         });
     }
 }
