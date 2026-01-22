@@ -4,10 +4,7 @@ import com.example.carbon_credit.DTO.BlockchainEventDTO;
 import com.example.carbon_credit.DTO.CertificateDetailResponse;
 import com.example.carbon_credit.DTO.CertificateRecordDTO;
 import com.example.carbon_credit.DTO.CertificateResponse;
-import com.example.carbon_credit.Entity.Certificate;
-import com.example.carbon_credit.Entity.CertificateRecord;
-import com.example.carbon_credit.Entity.ProcessedTransaction;
-import com.example.carbon_credit.Entity.WalletCredit;
+import com.example.carbon_credit.Entity.*;
 import com.example.carbon_credit.Repository.*;
 import com.example.carbon_credit.Util.BlockchainHelper;
 import jakarta.transaction.Transactional;
@@ -45,6 +42,7 @@ public class CertificateService {
 
     @Autowired
     CertificateRecordRepository certificateRecordRepository;
+
 
     @Autowired
     ContractService contractService;
@@ -224,19 +222,48 @@ public class CertificateService {
         }
     }
 
+
+
     private void getRecordFromChain(Certificate certificate) {
         try {
             List<CertificateRecordDTO> records = contractService.getCertificateRecords(certificate.getNftTokenId());
 
             for (CertificateRecordDTO record : records) {
-                CertificateRecord detail = CertificateRecord.builder().id(UUID.randomUUID().toString()).certificate(certificate).tokenId(record.getTokenId()).amount(record.getAmount()).build();
+                // 1. Lưu bản ghi chi tiết của chứng chỉ
+                CertificateRecord detail = CertificateRecord.builder()
+                        .id(UUID.randomUUID().toString())
+                        .certificate(certificate)
+                        .tokenId(record.getTokenId())
+                        .amount(record.getAmount())
+                        .build();
                 certificateRecordRepository.save(detail);
 
+                // 2. Trừ số dư tín chỉ trong ví người dùng (Logic cũ của bạn)
                 updateUserBalance(certificate.getUserId(), record.getTokenId(), record.getAmount());
+
+                // 3. CẬP NHẬT retiredAmount CHO CARBON_CREDIT VÀ PROJECT (Logic mới thêm)
+                updateGlobalRetiredAmounts(record.getTokenId(), record.getAmount());
             }
         } catch (Exception e) {
             log.error("Failed to fetch details from chain", e);
         }
+    }
+
+    private void updateGlobalRetiredAmounts(BigInteger tokenId, BigInteger amount) {
+        long amountLong = amount.longValue();
+
+        // Tìm CarbonCredit theo tokenId
+        CarbonCredit carbonCredit = carbonCreditRepository.findByTokenId(tokenId.longValue())
+                .orElseThrow(() -> new RuntimeException("CarbonCredit không tìm thấy cho Token ID: " + tokenId));
+
+        // Cập nhật retiredAmount cho CarbonCredit
+        carbonCredit.setRetiredAmount(carbonCredit.getRetiredAmount() + amountLong);
+        carbonCreditRepository.save(carbonCredit);
+
+        // Tìm Project tương ứng dựa trên projectId trong CarbonCredit
+
+        log.info("📈 Đã cập nhật retiredAmount:  TokenID={}, +{}",
+                tokenId, amountLong);
     }
     private void updateUserBalance(String userAddress, BigInteger creditTokenId, BigInteger amount) {
         Object lock = walletLocks.computeIfAbsent(userAddress.toLowerCase(), k -> new Object());

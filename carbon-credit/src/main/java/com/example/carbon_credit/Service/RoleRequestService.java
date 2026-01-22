@@ -208,36 +208,36 @@ public class RoleRequestService {
         }
     }
 
-    @Transactional
-    public void handleGovernmentAdded(BlockchainEventDTO event) {
-        try {
-            if (processedTransactionRepository.existsByTxHash(event.getTransactionHash())) {
-                log.warn("⚠️ Transaction {} already processed.", event.getTransactionHash());
-                return;
+        @Transactional
+        public void handleGovernmentAdded(BlockchainEventDTO event) {
+            try {
+                if (processedTransactionRepository.existsByTxHash(event.getTransactionHash())) {
+                    log.warn("⚠️ Transaction {} already processed.", event.getTransactionHash());
+                    return;
+                }
+
+                // ✅ Sử dụng Helper
+                String userAddress = BlockchainHelper.extractAddressFromTopic(event, 1);
+                if (userAddress == null) return;
+
+                Object lock = walletLocks.computeIfAbsent(userAddress.toLowerCase(), k -> new Object());
+                synchronized (lock) {
+                    addRoleDirectly(userAddress, "GOVERNMENT", null);
+                    saveProcessedTx(event);
+
+                    wsService.notify(
+                            "Thêm quyền GOVERNMENT thành công",
+                            String.format("Địa chỉ ví %s đã được cấp quyền GOVERNMENT.", userAddress),
+                            "SUCCESS",
+                            Arrays.asList("ADMIN", "GOVERNMENT"),
+                            null
+                    );
+                }
+            } catch (Exception e) {
+                log.error("❌ Error handling GOVERNMENT ADDED: {}", e.getMessage(), e);
+                throw e;
             }
-
-            // ✅ Sử dụng Helper
-            String userAddress = BlockchainHelper.extractAddressFromTopic(event, 1);
-            if (userAddress == null) return;
-
-            Object lock = walletLocks.computeIfAbsent(userAddress.toLowerCase(), k -> new Object());
-            synchronized (lock) {
-                addRoleDirectly(userAddress, "GOVERNMENT", null);
-                saveProcessedTx(event);
-
-                wsService.notify(
-                        "Thêm quyền GOVERNMENT thành công",
-                        String.format("Địa chỉ ví %s đã được cấp quyền GOVERNMENT.", userAddress),
-                        "SUCCESS",
-                        Arrays.asList("ADMIN", "GOVERNMENT"),
-                        null
-                );
-            }
-        } catch (Exception e) {
-            log.error("❌ Error handling GOVERNMENT ADDED: {}", e.getMessage(), e);
-            throw e;
         }
-    }
 
     @Transactional
     public void handleVerifierAdded(BlockchainEventDTO event) {

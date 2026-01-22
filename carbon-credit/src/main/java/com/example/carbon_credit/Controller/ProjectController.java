@@ -50,6 +50,14 @@ public class ProjectController {
         return projectService.getProjectDetail(id);
     }
 
+    @GetMapping("/detail/{id}")
+    public ResponseEntity<ProjectResponse> getProjectDetail(@PathVariable("id") String projectId) {
+        return projectService.getDetailProject(projectId)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+
 
     @GetMapping("/verifier-project")
     public List<Project> getProjectsByStatus(@RequestParam String status, Principal principal) {
@@ -67,6 +75,11 @@ public class ProjectController {
     @GetMapping("/ProjectVerified")
     public List<Project> getAllProjectApproved() {
         return projectService.getAllProjectSubmited(ProjectStatus.VERIFIED);
+    }
+
+    @GetMapping("/ProjectApproved")
+    public List<Project> getAllProjectApprovedd() {
+        return projectService.getAllProjectSubmited(ProjectStatus.APPROVED);
     }
 
     @GetMapping("/processed-project")

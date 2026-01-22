@@ -12,7 +12,7 @@ public interface NotificationRepository
         extends JpaRepository<Notification, String> {
 
     @Query("SELECT n FROM Notification n WHERE " +
-            "(n.recipient = :wallet) OR " +
+            "(LOWER(n.recipient) = LOWER(:wallet)) OR " +
             "(n.targetRole = :role) OR " +
             "(n.recipient IS NULL AND n.targetRole IS NULL) " +
             "ORDER BY n.createdAt DESC")

@@ -108,7 +108,9 @@ public class TradingService {
                 .remainingAmount(request.getAmount())
                 .status("PENDING")
                 .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
                 .build();
+
 
         // Lưu DB trước
         orderRepository.save(order);
@@ -146,6 +148,7 @@ public class TradingService {
                 .amount(request.getAmount())
                 .build();
 
+
         // Gửi vào Kafka (bất đồng bộ)
         kafkaProducerService.sendOrder(command);
 
@@ -158,7 +161,7 @@ public class TradingService {
                         order.getAmount()),  // Message: "Đặt BUY với giá: 1000 và số lượng 5."
                 "SUCCESS",  // Type
                 null,       // Role (null nếu gửi cá nhân)
-                request.getUserId()  // Wallet/Recipient
+                userId.toLowerCase()  // Wallet/Recipient
         );
 
         log.info("📤 Order {} sent to matching engine", order.getId());
@@ -204,7 +207,7 @@ public class TradingService {
                         order.getAmount()),  // Message: "Bạn đã hủy BUY với giá: 1000 và số lượng 5."
                 "WARNING",  // Type: WARNING để phân biệt (có thể dùng INFO nếu nhẹ hơn)
                 null,       // Role (null nếu gửi cá nhân)
-                order.getUserId()      // Wallet/Recipient (từ request hoặc order.getUserId())
+                order.getUserId().toLowerCase()      // Wallet/Recipient (từ request hoặc order.getUserId())
         );
         return false;
     }

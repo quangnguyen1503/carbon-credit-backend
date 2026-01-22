@@ -629,7 +629,7 @@ public class WalletService {
 
                 // --- THÔNG BÁO CHO NGƯỜI MUA ---
                 wsService.notify(
-                        "Khớp lệnh mua thành công! 🛒",
+                        "Khớp lệnh mua thành công!",
                         String.format("Bạn đã nhận được %s tín chỉ carbon. Tổng chi phí: %s ETH.",
                                 creditAmount, valueInEth.stripTrailingZeros().toPlainString()),
                         "SUCCESS",
@@ -639,7 +639,7 @@ public class WalletService {
 
                 // --- THÔNG BÁO CHO NGƯỜI BÁN ---
                 wsService.notify(
-                        "Lệnh bán đã khớp! 💰",
+                        "Lệnh bán đã khớp!",
                         String.format("Bạn đã bán thành công %s tín chỉ carbon. Tài khoản đã cộng: %s ETH.",
                                 creditAmount, valueInEth.stripTrailingZeros().toPlainString()),
                         "SUCCESS",

@@ -19,10 +19,13 @@ public class ProjectResponse {
     private String onchainHash;
     private long issueAmount;
     private long retiredAmount;
+    private String ownerName;
+    private String verifyName;
+    private String governmentName;
 
     public ProjectResponse(String id, String name, Integer vintage, String location,
                            String type, Integer expectedCredits, String description, String ipfsHash,long nftTokenId,
-                           LocalDateTime createdAt, String status, String onchainHash, long issueAmount, long retiredAmount) {
+                           LocalDateTime createdAt, String status, String onchainHash, long issueAmount, long retiredAmount, String ownerName, String verifyName, String governmentName) {
         this.id = id;
         this.name = name;
         this.vintage = vintage;
@@ -37,6 +40,9 @@ public class ProjectResponse {
         this.nftTokenId = nftTokenId;
         this.issueAmount = issueAmount;
         this.retiredAmount = retiredAmount;
+        this.ownerName = ownerName;
+        this.verifyName = verifyName;
+        this.governmentName = governmentName;
 
     }
 
