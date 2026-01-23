@@ -1,10 +1,7 @@
 package com.example.carbon_credit.Service;
 
 import com.example.carbon_credit.DTO.*;
-import com.example.carbon_credit.Entity.Certificate;
-import com.example.carbon_credit.Entity.CertificateRecord;
-import com.example.carbon_credit.Entity.ProcessedTransaction;
-import com.example.carbon_credit.Entity.WalletCredit;
+import com.example.carbon_credit.Entity.*;
 import com.example.carbon_credit.Repository.*;
 import com.example.carbon_credit.Util.BlockchainHelper;
 import jakarta.transaction.Transactional;
@@ -33,6 +30,9 @@ public class CertificateService {
     private final ConcurrentHashMap<String, Object> walletLocks = new ConcurrentHashMap<>();
     @Autowired
     CertificateRepository certificateRepository;
+
+    @Autowired
+    CarbonCreditRepository carbonCreditRepository;
     @Autowired
     ProcessedTransactionRepository processedTransactionRepository;
     @Autowired
@@ -174,7 +174,7 @@ public class CertificateService {
     public void handleBatchCeritificateRetired(BlockchainEventDTO event) {
         try {
             if (processedTransactionRepository.existsByTxHash(event.getTransactionHash())) {
-                log.warn("⚠️ Transaction {} already processed. Skipping.", event.getTransactionHash());
+                log.warn(" Transaction {} already processed. Skipping.", event.getTransactionHash());
                 return;
             }
 
@@ -182,7 +182,7 @@ public class CertificateService {
             String retiredBy = BlockchainHelper.extractAddressFromTopic(event, 2);
 
             if (certificateTokenId == null) {
-                log.error("❌ Invalid Credit Token Id event data");
+                log.error(" Invalid Credit Token Id event data");
                 return;
             }
             List<TypeReference<Type>> params = Arrays.asList((TypeReference) new TypeReference<Uint256>() {
@@ -193,7 +193,7 @@ public class CertificateService {
             List<Type> decoded = BlockchainHelper.decodeAnyData(event.getData(), params);
 
             if (decoded == null || decoded.size() < 3) {
-                log.error("❌ Failed to decode CREDIT_RETIRED data");
+                log.error(" Failed to decode CREDIT_RETIRED data");
                 return;
             }
 
@@ -205,7 +205,7 @@ public class CertificateService {
             Object lock = walletLocks.computeIfAbsent(certificateId.toLowerCase(), k -> new Object());
 
             synchronized (lock) {
-                log.info("🔥 Certificate: UUID={}, User={}, Amount={}, Record={}", certificateId, retiredBy, totalValue, recordCount);
+                log.info(" Certificate: UUID={}, User={}, Amount={}, Record={}", certificateId, retiredBy, totalValue, recordCount);
 
                 Certificate certificate = Certificate.builder().id(certificateId).userId(retiredBy).totalAmount(totalValue).nftTokenId(certificateTokenId).txHash(event.getTransactionHash()).createdAt(LocalDateTime.now()).build();
 
@@ -216,11 +216,11 @@ public class CertificateService {
                 ProcessedTransaction processedTx = ProcessedTransaction.builder().txHash(event.getTransactionHash()).eventType(event.getEventType()).processedAt(LocalDateTime.now()).build();
                 processedTransactionRepository.save(processedTx);
 
-                log.info("✅ Certificate created successfull {} by {}! Total Value {}", certificateTokenId, retiredBy, totalValue);
+                log.info(" Certificate created successfull {} by {}! Total Value {}", certificateTokenId, retiredBy, totalValue);
             }
 
         } catch (Exception e) {
-            log.error("❌ Error handling CREDIT_RETIRED: {}", e.getMessage(), e);
+            log.error(" Error handling CREDIT_RETIRED: {}", e.getMessage(), e);
             throw e;
         }
     }
@@ -232,7 +232,6 @@ public class CertificateService {
             for (CertificateRecordDTO record : records) {
                 CertificateRecord detail = CertificateRecord.builder().id(UUID.randomUUID().toString()).certificate(certificate).tokenId(record.getTokenId()).amount(record.getAmount()).build();
                 certificateRecordRepository.save(detail);
-
                 updateUserBalance(certificate.getUserId(), record.getTokenId(), record.getAmount());
             }
         } catch (Exception e) {
@@ -244,13 +243,16 @@ public class CertificateService {
         Object lock = walletLocks.computeIfAbsent(userAddress.toLowerCase(), k -> new Object());
 
         synchronized (lock) {
-            WalletCredit walletCredit = walletCreditRepository.findByWalletAddressAndTokenId(userAddress, creditTokenId.longValue()).orElseThrow(() -> new RuntimeException("Wallet Credit not found for Token: " + creditTokenId));
+            // 1. Cập nhật WalletCredit (như cũ)
+            WalletCredit walletCredit = walletCreditRepository
+                    .findByWalletAddressAndTokenId(userAddress, creditTokenId.longValue())
+                    .orElseThrow(() -> new RuntimeException("Wallet Credit not found for Token: " + creditTokenId));
 
             BigInteger currentAvailable = walletCredit.getAvailableBalance();
 
             if (currentAvailable.compareTo(amount) < 0) {
-                log.warn("Data Inconsistency: DB Balance ({}) < Retired Amount ({}) for User {}", currentAvailable, amount, userAddress);
-
+                log.warn("Data Inconsistency: DB Balance ({}) < Retired Amount ({}) for User {}",
+                        currentAvailable, amount, userAddress);
                 walletCredit.setAvailableBalance(currentAvailable.subtract(amount).max(BigInteger.ZERO));
             } else {
                 walletCredit.setAvailableBalance(currentAvailable.subtract(amount));
@@ -258,8 +260,17 @@ public class CertificateService {
 
             walletCredit.setUpdatedAt(LocalDateTime.now());
             walletCreditRepository.save(walletCredit);
-
             log.info("Deducted {} from User {} for Token {}", amount, userAddress, creditTokenId);
+
+            CarbonCredit carbonCredit = carbonCreditRepository
+                    .findByTokenId(creditTokenId.longValue())
+                    .orElseThrow(() -> new RuntimeException("Carbon Credit not found for Token: " + creditTokenId));
+
+            long currentRetired = carbonCredit.getRetiredAmount();
+            carbonCredit.setRetiredAmount(currentRetired + amount.longValue());
+            carbonCreditRepository.save(carbonCredit);
+
+            log.info("Updated retiredAmount to {} for Token {}", carbonCredit.getRetiredAmount(), creditTokenId);
         }
     }
 }

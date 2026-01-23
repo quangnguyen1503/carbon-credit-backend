@@ -62,17 +62,17 @@ public class MatchingEngine {
     public boolean cancelOrder(String creditId, String orderId) {
         OrderBook orderBook = orderBooks.get(creditId);
         if (orderBook == null) {
-            log.warn("❌ OrderBook not found for creditId: {}", creditId);
+            log.warn(" OrderBook not found for creditId: {}", creditId);
             return false;
         }
 
         boolean removed = orderBook.removeOrder(orderId);
         if (removed) {
-            log.info("✅ Order {} cancelled successfully", orderId);
+            log.info(" Order {} cancelled successfully", orderId);
             return true;
         }
 
-        log.warn("❌ Order {} not found for cancellation", orderId);
+        log.warn(" Order {} not found for cancellation", orderId);
         return false;
     }
 
@@ -145,7 +145,7 @@ public class MatchingEngine {
         // Sell: giá 0.01 để ăn hết bid orders
         command.setPrice(isBuy ? new BigDecimal("999999999") : new BigDecimal("0.01"));
 
-        log.info("📊 Market order converted: {} @ price={}", command.getOrderType(), command.getPrice());
+        log.info(" Market order converted: {} @ price={}", command.getOrderType(), command.getPrice());
     }
 
     public boolean hasOrderBook(String creditId) {
@@ -154,7 +154,7 @@ public class MatchingEngine {
 
     public void createOrderBook(String creditId) {
         if (!orderBooks.containsKey(creditId)) {
-            log.info("📊 Creating new OrderBook for creditId: {}", creditId);
+            log.info(" Creating new OrderBook for creditId: {}", creditId);
             orderBooks.put(creditId, new OrderBook(creditId));
         }
     }

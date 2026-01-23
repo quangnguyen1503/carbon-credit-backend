@@ -55,8 +55,7 @@ public class KafkaConsumerService {
 
         long startTime = System.nanoTime();
 
-        // Log rõ ràng để debug thứ tự xử lý
-        log.info("📥 [Kafka CONSUMER] [P-{}|O-{}] RECEIVED Order: {} | Type: {} | CreditId: {}",
+        log.info(" [Kafka CONSUMER] [P-{}|O-{}] RECEIVED Order: {} | Type: {} | CreditId: {}",
                 partition, offset, command.getOrderId(), command.getOrderType(), command.getCreditId());
 
         try {
@@ -67,7 +66,7 @@ public class KafkaConsumerService {
             // 0. CHECK STATUS (Race Condition Guard)
             Order order = orderRepository.findById(command.getOrderId()).orElse(null);
             if (order != null && "CANCELLED".equals(order.getStatus())) {
-                log.warn("🛑 Skipping order {} (Status: CANCELLED)", command.getOrderId());
+                log.warn(" Skipping order {} (Status: CANCELLED)", command.getOrderId());
                 ack.acknowledge();
                 return;
             }
@@ -78,14 +77,12 @@ public class KafkaConsumerService {
             // 2. Xử lý kết quả khớp
             if (trades != null && !trades.isEmpty()) {
                 log.info(" Matched {} trades for order {}", trades.size(), command.getOrderId());
-                // CRITICAL: Send sync to ensure trades are persisted before ack
                 kafkaProducerService.sendTradesSync(trades);
             } else {
                 log.info(" Order {} added to OrderBook (No match)", command.getOrderId());
             }
 
             // 3. Cập nhật UI (OrderBook Snapshot)
-            log.debug("📡 Triggering OrderBook Broadcast for CreditId: {}", command.getCreditId());
             broadcastOrderBookChange(command.getCreditId());
 
             // 4. Commit offset khi mọi thứ thành công
@@ -126,7 +123,6 @@ public class KafkaConsumerService {
 
         } catch (Exception e) {
             log.error(" Error persisting/settling trade {}: {}", trade.getTradeId(), e.getMessage(), e);
-            // Ném lỗi để kích hoạt Retry/DLQ. Không được làm mất Trade!
             throw new RuntimeException("Failed to process trade " + trade.getTradeId(), e);
         }
     }
@@ -141,7 +137,7 @@ public class KafkaConsumerService {
             try {
                 attempt++;
 
-                log.info("📨 Received event: {} | TxHash: {} (Attempt {}/{})",
+                log.info(" Received event: {} | TxHash: {} (Attempt {}/{})",
                         event.getEventType(),
                         event.getTransactionHash(),
                         attempt,
@@ -155,37 +151,37 @@ public class KafkaConsumerService {
                     ack.acknowledge();
                 }
 
-                log.info("✅ Successfully processed event: {}", event.getTransactionHash());
+                log.info(" Successfully processed event: {}", event.getTransactionHash());
 
             } catch (ObjectOptimisticLockingFailureException e) {
-                log.warn("⚠️ Optimistic locking conflict (attempt {}/{}): {}",
+                log.warn(" Optimistic locking conflict (attempt {}/{}): {}",
                         attempt, MAX_RETRY_ATTEMPTS, e.getMessage());
 
                 if (attempt < MAX_RETRY_ATTEMPTS) {
                     try {
-                        Thread.sleep(RETRY_DELAY_MS * attempt); // Exponential backoff
-                        log.info("🔄 Retrying event: {}", event.getTransactionHash());
+                        Thread.sleep(RETRY_DELAY_MS * attempt);
+                        log.info(" Retrying event: {}", event.getTransactionHash());
                     } catch (InterruptedException ie) {
                         Thread.currentThread().interrupt();
-                        log.error("❌ Retry interrupted");
+                        log.error(" Retry interrupted");
                         break;
                     }
                 } else {
-                    log.error("❌ Failed after {} attempts: {}", MAX_RETRY_ATTEMPTS, e.getMessage());
-                    // Optionally: Send to DLQ (Dead Letter Queue)
+                    log.error(" Failed after {} attempts: {}", MAX_RETRY_ATTEMPTS, e.getMessage());
+
                     if (ack != null) {
-                        ack.acknowledge(); // Acknowledge to prevent infinite retry
+                        ack.acknowledge();
                     }
                 }
 
             } catch (Exception e) {
-                log.error("❌ Failed to process event {}: {}",
+                log.error(" Failed to process event {}: {}",
                         event.getTransactionHash(),
                         e.getMessage(),
                         e);
 
                 if (ack != null) {
-                    ack.acknowledge(); // Acknowledge to prevent stuck message
+                    ack.acknowledge();
                 }
                 break;
             }
@@ -245,7 +241,7 @@ public class KafkaConsumerService {
                 walletService.handleBalanceUnlocked(event);
             }
             default -> {
-                log.warn("⚠️ Unhandled event type: {}", eventType);
+                log.warn(" Unhandled event type: {}", eventType);
             }
         }
     }
@@ -255,14 +251,14 @@ public class KafkaConsumerService {
             long start = System.currentTimeMillis();
             Map<String, Object> snapshot = matchingEngine.getOrderBook(creditId);
             if (snapshot != null) {
-                log.debug("📸 Snapshot retrieved for {}. Sending to WsService...", creditId);
+                log.debug(" Snapshot retrieved for {}. Sending to WsService...", creditId);
                 wsService.broadcastOrderBookUpdate(creditId, snapshot);
-                log.debug("✅ OrderBook Broadcast sent to WS (took {}ms)", System.currentTimeMillis() - start);
+                log.debug(" OrderBook Broadcast sent to WS (took {}ms)", System.currentTimeMillis() - start);
             } else {
-                log.warn("⚠️ Snapshot is NULL for creditId: {}. Skipping broadcast.", creditId);
+                log.warn(" Snapshot is NULL for creditId: {}. Skipping broadcast.", creditId);
             }
         } catch (Exception e) {
-            log.error("❌ Failed to broadcast orderbook update for {}: {}", creditId, e.getMessage(), e);
+            log.error(" Failed to broadcast orderbook update for {}: {}", creditId, e.getMessage(), e);
         }
     }
 }

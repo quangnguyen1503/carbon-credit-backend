@@ -53,11 +53,10 @@ public class KafkaProducerService {
     public void sendTradesSync(List<TradeEventDTO> trades) throws Exception {
         for (TradeEventDTO trade : trades) {
             try {
-                // .get() blocks until completion, throwing exception if failed
                 kafkaTemplate.send("trades", trade.getCreditId(), trade).get();
             } catch (Exception e) {
-                log.error("❌ FAILED to send trade sync {}: {}", trade.getTradeId(), e.getMessage());
-                throw e; // Propagate to retry entire batch/order
+                log.error(" FAILED to send trade sync {}: {}", trade.getTradeId(), e.getMessage());
+                throw e;
             }
         }
     }

@@ -12,5 +12,5 @@ public interface TradeRepository extends JpaRepository<Trade, String> {
     List<Trade> findByCreditIdAndStatus(String creditId, String status);  // Ví dụ filter trades theo credit
     List<Trade> findByBuyOrderIdOrSellOrderId(String buyOrderId, String sellOrderId);  // Trades của order cụ thể
 
-    List<Trade> findByCreditIdOrderByTradeAtDesc(String creditId, Pageable pageable);
+    List<Trade> findByCreditIdOrderByTradeAtDesc(String credit_id, Pageable pageable);
 }

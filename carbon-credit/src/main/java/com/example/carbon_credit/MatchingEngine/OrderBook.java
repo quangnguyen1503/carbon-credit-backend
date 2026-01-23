@@ -62,7 +62,7 @@ public class OrderBook {
             addToAskLevel(order, orderNode);
         }
 
-        log.debug("📝 Added {} order {} @ {} to orderbook",
+        log.debug("Added {} order {} @ {} to orderbook",
                 order.getOrderType(), order.getOrderId(), order.getPrice());
     }
 
@@ -77,14 +77,14 @@ public class OrderBook {
 
         boolean isBuy = "BUY".equalsIgnoreCase(newOrder.getOrderType());
 
-        log.debug("🔍 Matching {} order {} @ {} (remaining: {})",
+        log.debug(" Matching {} order {} @ {} (remaining: {})",
                 newOrder.getOrderType(), newOrder.getOrderId(), newOrder.getPrice(), remaining);
 
         // Get opposite side price levels
         while (remaining > 0) {
             BigDecimal bestOppositePrice = isBuy ? getBestAskPrice() : getBestBidPrice();
             if (bestOppositePrice == null) {
-                log.debug("❌ No opposite orders available");
+                log.debug(" No opposite orders available");
                 break;
             }
 
@@ -94,7 +94,7 @@ public class OrderBook {
                     : newOrder.getPrice().compareTo(bestOppositePrice) <= 0; // Sell price <= buy price
 
             if (!priceCross) {
-                log.debug("❌ No price cross: {} vs {}", newOrder.getPrice(), bestOppositePrice);
+                log.debug(" No price cross: {} vs {}", newOrder.getPrice(), bestOppositePrice);
                 break;
             }
 
@@ -159,7 +159,7 @@ public class OrderBook {
                         .sellOrderId(sellOrderId)
                         .creditId(creditId)
                         .amount(matchAmount)
-                        .price(bestOppositePrice) // Trade at maker price
+                        .price(bestOppositePrice)
                         .totalValue(bestOppositePrice.multiply(BigDecimal.valueOf(matchAmount)))
                         .tradeAt(LocalDateTime.now())
                         .build();
@@ -232,7 +232,7 @@ public class OrderBook {
 
         orderIndex.remove(orderId);
         remainingAmounts.remove(orderId);
-        log.debug("🗑️ Removed order {} from orderbook", orderId);
+        log.debug(" Removed order {} from orderbook", orderId);
         return true;
     }
 
@@ -298,7 +298,7 @@ public class OrderBook {
 
         return Map.of(
                 "creditId", creditId,
-                "bestBid", getBestBidPrice() != null ? getBestBidPrice() : BigDecimal.ZERO, // Fix N/A issue
+                "bestBid", getBestBidPrice() != null ? getBestBidPrice() : BigDecimal.ZERO,
                 "bestAsk", getBestAskPrice() != null ? getBestAskPrice() : BigDecimal.ZERO,
                 "bestBidVolume", getBestBidVolume() != null ? getBestBidVolume() : 0,
                 "bestAskVolume", getBestAskVolume() != null ? getBestAskVolume() : 0,
@@ -307,7 +307,7 @@ public class OrderBook {
                 "totalOrders", getTotalOrders());
     }
 
-    // ==================== PRIVATE METHODS ====================
+
 
     private void addToBidLevel(PlaceOrderCommandDTO order, OrderNode orderNode) {
         BidPriceLevel level = bidLevels.get(order.getPrice());

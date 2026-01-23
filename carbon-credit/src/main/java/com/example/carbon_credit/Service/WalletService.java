@@ -55,7 +55,7 @@ public class WalletService {
         try {
 
             if (processedTransactionRepository.existsByTxHash(event.getTransactionHash())) {
-                log.warn("⚠️ Transaction {} already processed. Skipping.", event.getTransactionHash());
+                log.warn(" Transaction {} already processed. Skipping.", event.getTransactionHash());
                 return;
             }
 
@@ -63,17 +63,17 @@ public class WalletService {
             BigInteger amount = BlockchainHelper.extractUint256FromData(event, 0);
 
             if (userAddress == null || amount == null) {
-                log.error("❌ Invalid NATIVE_DEPOSITED event data");
+                log.error(" Invalid NATIVE_DEPOSITED event data");
                 return;
             }
 
             Object lock = walletLocks.computeIfAbsent(userAddress.toLowerCase(), k -> new Object());
 
             synchronized (lock) {
-                log.info("💰 Native Deposited: {} deposited {} wei", userAddress, amount);
+                log.info(" Native Deposited: {} deposited {} wei", userAddress, amount);
 
                 Wallet wallet = walletRepository.findByAddress(userAddress).orElseGet(() -> {
-                    log.info("🆕 Creating new wallet for: {}", userAddress);
+                    log.info(" Creating new wallet for: {}", userAddress);
                     Wallet newWallet = new Wallet();
                     newWallet.setId(UUID.randomUUID().toString());
                     newWallet.setAddress(userAddress);
@@ -91,7 +91,7 @@ public class WalletService {
                 walletRepository.save(wallet);
 
                 wsService.notify(
-                        "Nạp tiền thành công! ✅",
+                        "Nạp tiền thành công! ",
                         "Bạn vừa nạp " + amountInEther + " ETH vào sàn giao dịch.",
                         "SUCCESS", null, userAddress
                 );
@@ -103,11 +103,11 @@ public class WalletService {
                         .build();
                 processedTransactionRepository.save(processedTx);
 
-                log.info("✅ Updated wallet {} | Old balance: {} POL | New balance: {} POL", userAddress, currentBalance, newBalance);
+                log.info(" Updated wallet {} | Old balance: {} POL | New balance: {} POL", userAddress, currentBalance, newBalance);
             }
 
         } catch (Exception e) {
-            log.error("❌ Error handling NATIVE_DEPOSITED: {}", e.getMessage(), e);
+            log.error(" Error handling NATIVE_DEPOSITED: {}", e.getMessage(), e);
             throw e;
         }
 
@@ -118,7 +118,7 @@ public class WalletService {
         try {
 
             if (processedTransactionRepository.existsByTxHash(event.getTransactionHash())) {
-                log.warn("⚠️ Transaction {} already processed. Skipping.", event.getTransactionHash());
+                log.warn(" Transaction {} already processed. Skipping.", event.getTransactionHash());
                 return;
             }
 
@@ -126,14 +126,14 @@ public class WalletService {
             BigInteger amount = BlockchainHelper.extractUint256FromData(event, 0);
 
             if (userAddress == null || amount == null) {
-                log.error("❌ Invalid NATIVE_WITHDRAWN event data");
+                log.error(" Invalid NATIVE_WITHDRAWN event data");
                 return;
             }
 
             Object lock = walletLocks.computeIfAbsent(userAddress.toLowerCase(), k -> new Object());
 
             synchronized (lock) {
-                log.info("💸 Native Withdrawn: {} withdrew {} wei", userAddress, amount);
+                log.info(" Native Withdrawn: {} withdrew {} wei", userAddress, amount);
 
                 Wallet wallet = walletRepository.findByAddress(userAddress).orElseThrow(() -> new RuntimeException("Wallet not found: " + userAddress));
 
@@ -142,7 +142,7 @@ public class WalletService {
                 BigDecimal newBalance = currentBalance.subtract(amountInEther);
 
                 if (newBalance.compareTo(BigDecimal.ZERO) < 0) {
-                    log.error("❌ Insufficient balance for withdrawal");
+                    log.error(" Insufficient balance for withdrawal");
                     throw new RuntimeException("Insufficient balance");
                 }
 
@@ -158,16 +158,16 @@ public class WalletService {
                 processedTransactionRepository.save(processedTx);
 
                 wsService.notify(
-                        "Rút tiền thành công! ✅",
+                        "Rút tiền thành công! ",
                         "Bạn vừa rút " + amountInEther + " ETH vào sàn giao dịch.",
                         "SUCCESS", null, userAddress
                 );
 
-                log.info("✅ Updated wallet {} | New balance: {} POL", userAddress, newBalance);
+                log.info(" Updated wallet {} | New balance: {} POL", userAddress, newBalance);
             }
 
         } catch (Exception e) {
-            log.error("❌ Error handling NATIVE_WITHDRAWN: {}", e.getMessage(), e);
+            log.error(" Error handling NATIVE_WITHDRAWN: {}", e.getMessage(), e);
             throw e;
         }
     }
@@ -176,7 +176,7 @@ public class WalletService {
     public void handleCreditDeposited(BlockchainEventDTO event) {
         try {
             if (processedTransactionRepository.existsByTxHash(event.getTransactionHash())) {
-                log.warn("⚠️ Transaction {} already processed. Skipping.", event.getTransactionHash());
+                log.warn("️ Transaction {} already processed. Skipping.", event.getTransactionHash());
                 return;
             }
 
@@ -185,7 +185,7 @@ public class WalletService {
             BigInteger amount = BlockchainHelper.extractUint256FromData(event, 0);
 
             if (userAddress == null || creditTokenId == null || amount == null) {
-                log.error("❌ Invalid CREDIT_DEPOSIT event data");
+                log.error(" Invalid CREDIT_DEPOSIT event data");
                 log.error("   userAddress: {}", userAddress);
                 log.error("   creditTokenId: {}", creditTokenId);
                 log.error("   amount: {}", amount);
@@ -197,9 +197,9 @@ public class WalletService {
             Object lock = walletLocks.computeIfAbsent(userAddress.toLowerCase(), k -> new Object());
 
             synchronized (lock) {
-                log.info("🪙 Credit Deposited: {} deposited {} units of token {}", userAddress, amount, creditTokenId);
+                log.info(" Credit Deposited: {} deposited {} units of token {}", userAddress, amount, creditTokenId);
                 Wallet wallet = walletRepository.findByAddress(userAddress).orElseGet(() -> {
-                    log.info("🆕 Creating new wallet for: {}", userAddress);
+                    log.info(" Creating new wallet for: {}", userAddress);
                     Wallet newWallet = new Wallet();
                     newWallet.setId(UUID.randomUUID().toString());
                     newWallet.setAddress(userAddress);
@@ -211,7 +211,7 @@ public class WalletService {
                 CarbonCredit carbonCredit = carbonCreditRepository.findByTokenId(creditTokenId.longValue()).orElseThrow(() -> new RuntimeException("CarbonCredit not found for tokenId: " + creditTokenId));
 
                 WalletCredit walletCredit = walletCreditRepository.findByWalletAddressAndTokenId(userAddress, creditTokenId.longValue()).orElseGet(() -> {
-                    log.info("🆕 Creating new credit balance: address={}, tokenId={}", userAddress, creditTokenId);
+                    log.info(" Creating new credit balance: address={}, tokenId={}", userAddress, creditTokenId);
 
                     WalletCredit newCredit = new WalletCredit();
                     newCredit.setId(UUID.randomUUID().toString());
@@ -239,16 +239,16 @@ public class WalletService {
                 processedTransactionRepository.save(processedTx);
 
                 wsService.notify(
-                        "Nạp Credit thành công! ✅",
+                        "Nạp Credit thành công! ",
                         "Bạn vừa nạp " + amount + " credit vào sàn giao dịch.",
                         "SUCCESS", null, userAddress
                 );
 
-                log.info("✅ Updated credit | Address: {} | Token: {} | Balance: {}", userAddress, creditTokenId, newBalance);
+                log.info(" Updated credit | Address: {} | Token: {} | Balance: {}", userAddress, creditTokenId, newBalance);
             }
 
         } catch (Exception e) {
-            log.error("❌ Error handling CREDIT_DEPOSIT: {}", e.getMessage(), e);
+            log.error(" Error handling CREDIT_DEPOSIT: {}", e.getMessage(), e);
             throw e;
         }
     }
@@ -257,7 +257,7 @@ public class WalletService {
     public void handleCreditWithdraw(BlockchainEventDTO event) {
         try {
             if (processedTransactionRepository.existsByTxHash(event.getTransactionHash())) {
-                log.warn("⚠️ Transaction {} already processed. Skipping.", event.getTransactionHash());
+                log.warn("⚠ Transaction {} already processed. Skipping.", event.getTransactionHash());
                 return;
             }
 
@@ -266,23 +266,23 @@ public class WalletService {
             BigInteger amount = BlockchainHelper.extractUint256FromData(event, 0);
 
             if (userAddress == null || creditTokenId == null || amount == null) {
-                log.error("❌ Invalid CREDIT_WITHDRAW event data");
+                log.error(" Invalid CREDIT_WITHDRAW event data");
                 return;
             }
 
             Object lock = walletLocks.computeIfAbsent(userAddress.toLowerCase(), k -> new Object());
 
             synchronized (lock) {
-                log.info("🪙 Credit Withdrawn: {} withdrew {} units of token {}", userAddress, amount, creditTokenId);
+                log.info(" Credit Withdrawn: {} withdrew {} units of token {}", userAddress, amount, creditTokenId);
 
-                // ✅ Find by wallet address and token ID
+
                 WalletCredit walletCredit = walletCreditRepository.findByWalletAddressAndTokenId(userAddress, creditTokenId.longValue()).orElseThrow(() -> new RuntimeException("Credit balance not found for address: " + userAddress));
 
                 BigInteger currentBalance = walletCredit.getAvailableBalance();
                 BigInteger newBalance = currentBalance.subtract(amount);
 
                 if (newBalance.compareTo(BigInteger.ZERO) < 0) {
-                    log.error("❌ Insufficient credit balance");
+                    log.error(" Insufficient credit balance");
                     throw new RuntimeException("Insufficient credit balance");
                 }
 
@@ -297,17 +297,17 @@ public class WalletService {
                         .build();
                 processedTransactionRepository.save(processedTx);
 
-                log.info("✅ Updated credit | Address: {} | Token: {} | Balance: {}", userAddress, creditTokenId, newBalance);
+                log.info(" Updated credit | Address: {} | Token: {} | Balance: {}", userAddress, creditTokenId, newBalance);
 
                 wsService.notify(
-                        "Rút credit thành công! ✅",
+                        "Rút credit thành công! ",
                         "Bạn vừa rút " + amount + " credit từ sàn giao dịch.",
                         "SUCCESS", null, userAddress
                 );
             }
 
         } catch (Exception e) {
-            log.error("❌ Error handling CREDIT_WITHDRAW: {}", e.getMessage(), e);
+            log.error(" Error handling CREDIT_WITHDRAW: {}", e.getMessage(), e);
             throw e;
         }
     }
@@ -317,7 +317,7 @@ public class WalletService {
         try {
 
             if (processedTransactionRepository.existsByTxHash(event.getTransactionHash())) {
-                log.warn("⚠️ Transaction {} already processed. Skipping.", event.getTransactionHash());
+                log.warn(" Transaction {} already processed. Skipping.", event.getTransactionHash());
                 return;
             }
 
@@ -331,7 +331,7 @@ public class WalletService {
             List<Type> decoded = BlockchainHelper.decodeAnyData(event.getData(), params);
 
             if (decoded == null || decoded.size() < 3) {
-                log.error("❌ Failed to decode BALANCE_LOCKED data");
+                log.error(" Failed to decode BALANCE_LOCKED data");
                 return;
             }
 
@@ -340,10 +340,10 @@ public class WalletService {
             BigInteger amount = (BigInteger) decoded.get(2).getValue();
             boolean isCreditTokenEvent = (Boolean) decoded.get(3).getValue();
 
-            log.info("🔍 Decoded: OrderID={}, User={}, Amount={}", orderId, userAddress, amount);
+            log.info(" Decoded: OrderID={}, User={}, Amount={}", orderId, userAddress, amount);
 
             if (userAddress == null || orderId == null || amount == null) {
-                log.error("❌ Invalid BALANCE_LOCKED event data");
+                log.error(" Invalid BALANCE_LOCKED event data");
                 return;
             }
 
@@ -359,7 +359,7 @@ public class WalletService {
 
                 if (isSellOrder || isCreditTokenEvent) {
                     // --- KHÓA TÍN CHỈ (CREDIT) ---
-                    log.info("🔒 Locking Credit for Order {}", orderId);
+                    log.info(" Locking Credit for Order {}", orderId);
 
                     // Parse Credit ID từ Order (String -> Long)
                     Long creditTokenId = Long.parseLong(order.getCreditId());
@@ -380,7 +380,7 @@ public class WalletService {
 
                 } else {
                     // --- KHÓA TIỀN (NATIVE/USDC) ---
-                    log.info("🔒 Locking Native Balance for Order {}", orderId);
+                    log.info(" Locking Native Balance for Order {}", orderId);
 
                     Wallet wallet = walletRepository.findByAddress(userAddress).orElseThrow(() -> new RuntimeException("Wallet not found"));
 
@@ -405,11 +405,11 @@ public class WalletService {
                         .build();
                 processedTransactionRepository.save(processedTx);
 
-                log.info("✅ Balance Locked Successfully: {} | Amount: {}", userAddress, amount);
+                log.info(" Balance Locked Successfully: {} | Amount: {}", userAddress, amount);
             }
 
         } catch (Exception e) {
-            log.error("❌ Error handling BALANCE_LOCKED: {}", e.getMessage(), e);
+            log.error(" Error handling BALANCE_LOCKED: {}", e.getMessage(), e);
             throw e;
         }
     }
@@ -419,7 +419,7 @@ public class WalletService {
         try {
 
             if (processedTransactionRepository.existsByTxHash(event.getTransactionHash())) {
-                log.warn("⚠️ Transaction {} already processed. Skipping.", event.getTransactionHash());
+                log.warn(" Transaction {} already processed. Skipping.", event.getTransactionHash());
                 return;
             }
 
@@ -432,7 +432,7 @@ public class WalletService {
             List<Type> decoded = BlockchainHelper.decodeAnyData(event.getData(), params);
 
             if (decoded == null || decoded.size() < 3) {
-                log.error("❌ Failed to decode BALANCE_LOCKED data");
+                log.error(" Failed to decode BALANCE_LOCKED data");
                 return;
             }
 
@@ -441,7 +441,7 @@ public class WalletService {
             BigInteger amount = (BigInteger) decoded.get(2).getValue();
 
             if (userAddress == null || orderId == null || amount == null) {
-                log.error("❌ Invalid BALANCE_UNLOCKED event data");
+                log.error(" Invalid BALANCE_UNLOCKED event data");
                 return;
             }
 
@@ -454,7 +454,7 @@ public class WalletService {
                 // Dựa vào loại lệnh (BUY/SELL) để biết cần mở khóa ví nào
                 if ("SELL".equalsIgnoreCase(order.getOrderType())) {
                     // SELL Order = Đã khóa Tín chỉ -> Giờ mở khóa Tín chỉ
-                    log.info("🔓 Unlocking Credit for Order {}", orderId);
+                    log.info(" Unlocking Credit for Order {}", orderId);
 
                     Long creditTokenId = Long.parseLong(order.getCreditId());
 
@@ -464,7 +464,7 @@ public class WalletService {
                     BigInteger locked = walletCredit.getLockedBalance();
 
                     if (locked.compareTo(amount) < 0) {
-                        log.warn("⚠️ Locked credit {} < Unlock amount {}", locked, amount);
+                        log.warn(" Locked credit {} < Unlock amount {}", locked, amount);
                     }
 
                     walletCredit.setAvailableBalance(available.add(amount));
@@ -475,7 +475,7 @@ public class WalletService {
 
                 } else {
                     // BUY Order = Đã khóa Tiền -> Giờ mở khóa Tiền
-                    log.info("🔓 Unlocking Native Balance for Order {}", orderId);
+                    log.info(" Unlocking Native Balance for Order {}", orderId);
 
                     Wallet wallet = walletRepository.findByAddress(userAddress).orElseThrow(() -> new RuntimeException("Wallet not found"));
 
@@ -495,11 +495,11 @@ public class WalletService {
                         .build();
                 processedTransactionRepository.save(processedTx);
 
-                log.info("✅ Balance Unlocked Successfully");
+                log.info(" Balance Unlocked Successfully");
             }
 
         } catch (Exception e) {
-            log.error("❌ Error handling BALANCE_UNLOCKED: {}", e.getMessage(), e);
+            log.error(" Error handling BALANCE_UNLOCKED: {}", e.getMessage(), e);
             throw e;
         }
     }
@@ -508,7 +508,7 @@ public class WalletService {
     public void handleTradeSettled(BlockchainEventDTO event) {
         try {
             if (processedTransactionRepository.existsByTxHash(event.getTransactionHash())) {
-                log.warn("⚠️ Transaction {} already processed. Skipping.", event.getTransactionHash());
+                log.warn(" Transaction {} already processed. Skipping.", event.getTransactionHash());
                 return;
             }
 
@@ -526,7 +526,7 @@ public class WalletService {
             List<Type> decodedData = BlockchainHelper.decodeAnyData(event.getData(), params);
 
             if (decodedData == null || decodedData.size() < 3) {
-                log.error("❌ Failed to decode TRADE_SETTLED data");
+                log.error(" Failed to decode TRADE_SETTLED data");
                 return;
             }
 
@@ -536,11 +536,11 @@ public class WalletService {
             BigInteger totalValueWei = (BigInteger) decodedData.get(2).getValue();
 
             if (buyerAddress == null || sellerAddress == null) {
-                log.error("❌ Invalid TRADE_SETTLED address data");
+                log.error(" Invalid TRADE_SETTLED address data");
                 return;
             }
 
-            log.info("⚖️ Settling Trade: Buyer={} | Seller={} | Token={} | Amount={} | Val={}", buyerAddress, sellerAddress, creditTokenId, creditAmount, totalValueWei);
+            log.info("⚖ Settling Trade: Buyer={} | Seller={} | Token={} | Amount={} | Val={}", buyerAddress, sellerAddress, creditTokenId, creditAmount, totalValueWei);
 
             CarbonCredit carbonCredit = carbonCreditRepository.findByTokenId(creditTokenId.longValue())
                     .orElseThrow(() -> new RuntimeException("Carbon Credit not found for token ID: " + creditTokenId));
@@ -548,7 +548,6 @@ public class WalletService {
             // 2. Cập nhật cho NGƯỜI MUA (Buyer)
             Object buyerLock = walletLocks.computeIfAbsent(buyerAddress.toLowerCase(), k -> new Object());
             synchronized (buyerLock) {
-                // A. Cộng Tín chỉ vào ví (Available)
                 WalletCredit buyerCredit = walletCreditRepository.findByWalletAddressAndTokenId(buyerAddress, creditTokenId.longValue())
                         .orElseGet(() -> {
                             Wallet wallet = walletRepository.findByAddress(buyerAddress)
@@ -568,13 +567,11 @@ public class WalletService {
                 buyerCredit.setAvailableBalance(buyerCredit.getAvailableBalance().add(creditAmount));
                 walletCreditRepository.save(buyerCredit);
 
-                // B. Trừ tiền Native đã khóa (Locked)
+
                 Wallet buyerWallet = walletRepository.findByAddress(buyerAddress).orElseThrow(() -> new RuntimeException("Buyer wallet not found"));
 
                 BigDecimal valueDecimal = new BigDecimal(totalValueWei).divide(new BigDecimal("1000000000000000000"), 18, RoundingMode.HALF_UP);
 
-                // Giả định Entity Wallet có field nativeLocked (như bạn dùng trong handleBalanceLocked)
-                // Nếu chưa có, bạn cần đảm bảo DB có cột này
                 BigDecimal currentLocked = buyerWallet.getNativeLocked() != null ? buyerWallet.getNativeLocked() : BigDecimal.ZERO;
                 buyerWallet.setNativeLocked(currentLocked.subtract(valueDecimal).max(BigDecimal.ZERO));
 
@@ -584,7 +581,6 @@ public class WalletService {
             // 3. Cập nhật cho NGƯỜI BÁN (Seller)
             Object sellerLock = walletLocks.computeIfAbsent(sellerAddress.toLowerCase(), k -> new Object());
             synchronized (sellerLock) {
-                // A. Cộng tiền Native vào ví (Available)
                 Wallet sellerWallet = walletRepository.findByAddress(sellerAddress).orElseThrow(() -> new RuntimeException("Seller wallet not found"));
 
                 BigDecimal valueDecimal = new BigDecimal(totalValueWei).divide(new BigDecimal("1000000000000000000"), 18, RoundingMode.HALF_UP);
@@ -592,7 +588,6 @@ public class WalletService {
                 sellerWallet.setNativeBalance(sellerWallet.getNativeBalance().add(valueDecimal));
                 walletRepository.save(sellerWallet);
 
-                // B. Trừ Tín chỉ đã khóa (Locked)
                 WalletCredit sellerCredit = walletCreditRepository.findByWalletAddressAndTokenId(sellerAddress, creditTokenId.longValue()).orElseThrow(() -> new RuntimeException("Seller credit wallet not found"));
 
                 BigInteger currentLocked = sellerCredit.getLockedBalance();
@@ -600,7 +595,6 @@ public class WalletService {
                 walletCreditRepository.save(sellerCredit);
             }
 
-            // 4. LƯU LỊCH SỬ GIAO DỊCH (CREDIT HISTORY)
             CreditHistory history = CreditHistory.builder()
                     .id(UUID.randomUUID().toString())
                     .creditId(carbonCredit.getId())
@@ -620,16 +614,16 @@ public class WalletService {
                     .build();
             processedTransactionRepository.save(processedTx);
 
-            log.info("✅ Trade Settled & History Saved Successfully");
+            log.info(" Trade Settled & History Saved Successfully");
 
             try {
                 // Tính toán giá trị ETH để hiển thị trong tin nhắn
                 BigDecimal valueInEth = new BigDecimal(totalValueWei)
                         .divide(new BigDecimal("1000000000000000000"), 6, RoundingMode.HALF_UP);
 
-                // --- THÔNG BÁO CHO NGƯỜI MUA ---
+
                 wsService.notify(
-                        "Khớp lệnh mua thành công! 🛒",
+                        "Khớp lệnh mua thành công!",
                         String.format("Bạn đã nhận được %s tín chỉ carbon. Tổng chi phí: %s ETH.",
                                 creditAmount, valueInEth.stripTrailingZeros().toPlainString()),
                         "SUCCESS",
@@ -637,9 +631,9 @@ public class WalletService {
                         buyerAddress
                 );
 
-                // --- THÔNG BÁO CHO NGƯỜI BÁN ---
+
                 wsService.notify(
-                        "Lệnh bán đã khớp! 💰",
+                        "Lệnh bán đã khớp!",
                         String.format("Bạn đã bán thành công %s tín chỉ carbon. Tài khoản đã cộng: %s ETH. ",
                                 creditAmount, valueInEth.stripTrailingZeros().toPlainString()),
                         "SUCCESS",
@@ -647,14 +641,13 @@ public class WalletService {
                         sellerAddress
                 );
 
-                log.info("🔔 Sent trade settlement notifications to Buyer and Seller.");
+                log.info(" Sent trade settlement notifications to Buyer and Seller.");
             } catch (Exception notifyEx) {
-                // Log lỗi thông báo nhưng không làm rollback giao dịch tiền tệ
-                log.warn("⚠️ Could not send trade notifications: {}", notifyEx.getMessage());
+                log.warn("⚠ Could not send trade notifications: {}", notifyEx.getMessage());
             }
 
         } catch (Exception e) {
-            log.error("❌ Error handling TRADE_SETTLED: {}", e.getMessage(), e);
+            log.error(" Error handling TRADE_SETTLED: {}", e.getMessage(), e);
             throw e;
         }
     }

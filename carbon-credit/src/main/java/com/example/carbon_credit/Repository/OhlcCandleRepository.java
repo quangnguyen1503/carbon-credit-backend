@@ -11,13 +11,13 @@ import java.util.Optional;
 public interface OhlcCandleRepository extends JpaRepository<OhlcCandle, String> {
 
     List<OhlcCandle> findByCreditIdAndTimeframeAndTimestampGreaterThanOrderByTimestampAsc(
-            String creditId,
+            String credit_id,
             String timeframe,
             Long since
     );
 
     Optional<OhlcCandle> findByCreditIdAndTimeframeAndTimestamp(
-            String creditId,
+            String credit_id,
             String timeframe,
             Long timestamp
     );

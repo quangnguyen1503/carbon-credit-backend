@@ -176,10 +176,10 @@ public class ContractService {
         TransactionReceipt receipt = waitForReceipt(txHash);
 
         if (receipt.isStatusOK()) {
-            log.info("✅ Balance locked successfully");
-            log.info("📊 Gas used: {} | Block: {}", receipt.getGasUsed(), receipt.getBlockNumber());
+            log.info(" Balance locked successfully");
+            log.info(" Gas used: {} | Block: {}", receipt.getGasUsed(), receipt.getBlockNumber());
         } else {
-            log.error("❌ Transaction reverted! Status: {}", receipt.getStatus(), receipt.getRevertReason());
+            log.error(" Transaction reverted! Status: {}", receipt.getStatus(), receipt.getRevertReason());
             throw new RuntimeException("Transaction reverted - check smart contract conditions");
         }
 
@@ -244,7 +244,6 @@ public class ContractService {
                         new Uint256(trade.getTotalValue())))
                 .collect(Collectors.toList());
 
-        // ✅ SỬA ĐỔI: List<Bytes32> thành List<Utf8String>
         List<Utf8String> buyOrderIdTypes = buyOrderIds.stream()
                 .map(Utf8String::new)
                 .collect(Collectors.toList());

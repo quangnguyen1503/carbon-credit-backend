@@ -131,7 +131,6 @@ public class TradingService {
             order.setStatus("FAILED");
             order.setUpdatedAt(LocalDateTime.now());
             orderRepository.save(order);
-
             throw new RuntimeException("Failed to lock balance on blockchain", e);
 
         }
