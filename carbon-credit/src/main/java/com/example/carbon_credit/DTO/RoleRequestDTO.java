@@ -10,6 +10,8 @@ public class RoleRequestDTO {
 
     private String verifierRoleId;
 
+    private String documentHash;
+
 
 
 }

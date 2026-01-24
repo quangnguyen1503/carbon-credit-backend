@@ -63,16 +63,6 @@ public class RoleRequestService {
             throw new RuntimeException("You already have a pending role request.");
         }
 
-        if (UserRole.VERIFIER.equals(dto.getRequestedRole())) {
-            if (dto.getVerifierRoleId() == null) {
-                throw new RuntimeException("Verifier must select an organization");
-            }
-        } else {
-            if (dto.getVerifierRoleId() != null) {
-                throw new RuntimeException("Only verifier can select organization");
-            }
-        }
-
         String token = UUID.randomUUID().toString();
 
         RoleRequest req = new RoleRequest();
@@ -83,6 +73,7 @@ public class RoleRequestService {
         req.setStatus(RoleRequestStatus.PENDING);
         req.setEmailToken(token);
         req.setTokenExpiredAt(LocalDateTime.now().plusMinutes(15));
+        req.setDocumentHash(dto.getDocumentHash());
 
         roleRequestRepository.save(req);
 
@@ -208,8 +199,8 @@ public class RoleRequestService {
         }
     }
 
-        @Transactional
-        public void handleGovernmentAdded(BlockchainEventDTO event) {
+    @Transactional
+    public void handleGovernmentAdded(BlockchainEventDTO event) {
             try {
                 if (processedTransactionRepository.existsByTxHash(event.getTransactionHash())) {
                     log.warn("⚠️ Transaction {} already processed.", event.getTransactionHash());
