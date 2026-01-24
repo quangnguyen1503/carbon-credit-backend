@@ -107,54 +107,51 @@ public class AdminReportService {
             document.open();
 
             // --- FONTS ---
-            Font titleFont = new Font(Font.HELVETICA, 20, Font.BOLD, new Color(22, 160, 133)); // Green Sea
+            Font titleFont = new Font(Font.HELVETICA, 20, Font.BOLD, new Color(22, 160, 133));
             Font headerFont = new Font(Font.HELVETICA, 14, Font.BOLD, Color.DARK_GRAY);
             Font normalFont = new Font(Font.HELVETICA, 11, Font.NORMAL, Color.BLACK);
             Font tableHeaderFont = new Font(Font.HELVETICA, 11, Font.BOLD, Color.WHITE);
 
             // --- TITLE ---
-            Paragraph title = new Paragraph("CARBON CREDIT SYSTEM REPORT", titleFont);
+            Paragraph title = new Paragraph("BÁO CÁO HỆ THỐNG TÍN CHỈ CARBON", titleFont);
             title.setAlignment(Element.ALIGN_CENTER);
             document.add(title);
 
-            Paragraph subtitle = new Paragraph("Reporting Period: " + month + "/" + year, normalFont);
+            Paragraph subtitle = new Paragraph("Kỳ báo cáo: Tháng " + month + "/" + year, normalFont);
             subtitle.setAlignment(Element.ALIGN_CENTER);
             subtitle.setSpacingAfter(20);
             document.add(subtitle);
 
-            // --- SECTION 1: EXECUTIVE SUMMARY (Dùng Bảng để căn chỉnh đẹp) ---
-            document.add(new Paragraph("1. EXECUTIVE SUMMARY", headerFont));
-            document.add(new Paragraph(" ", normalFont)); // Spacer
+            // --- SECTION 1: EXECUTIVE SUMMARY ---
+            document.add(new Paragraph("1. TỔNG QUAN ĐIỀU HÀNH", headerFont));
+            document.add(new Paragraph(" ", normalFont));
 
-            PdfPTable summaryTable = new PdfPTable(3); // 3 cột
+            PdfPTable summaryTable = new PdfPTable(3);
             summaryTable.setWidthPercentage(100);
             summaryTable.setSpacingAfter(20);
 
-            // Helper để thêm ô dữ liệu summary
-            addSummaryCell(summaryTable, "Total Projects", String.valueOf(data.getTotalProjects()));
-            addSummaryCell(summaryTable, "Total Issued", formatNumber(data.getTotalIssued()));
-            addSummaryCell(summaryTable, "Total Retired", formatNumber(data.getTotalRetired()));
+            addSummaryCell(summaryTable, "Tổng số dự án", String.valueOf(data.getTotalProjects()));
+            addSummaryCell(summaryTable, "Tổng tín chỉ phát hành", formatNumber(data.getTotalIssued()));
+            addSummaryCell(summaryTable, "Tổng tín chỉ đã hủy", formatNumber(data.getTotalRetired()));
 
-            addSummaryCell(summaryTable, "Trade Volume", formatNumber(data.getTotalTradeVolume()));
-            addSummaryCell(summaryTable, "Total Revenue ($)", formatMoney(data.getTotalTradeValue()));
-            addSummaryCell(summaryTable, "Avg Price ($)", formatMoney(data.getAvgPrice()));
+            addSummaryCell(summaryTable, "Khối lượng giao dịch", formatNumber(data.getTotalTradeVolume()));
+            addSummaryCell(summaryTable, "Tổng giá trị giao dịch ($)", formatMoney(data.getTotalTradeValue()));
+            addSummaryCell(summaryTable, "Giá trung bình ($)", formatMoney(data.getAvgPrice()));
 
             document.add(summaryTable);
 
-            // --- SECTION 2: TOP PERFORMING PROJECTS ---
-            document.add(new Paragraph("2. TOP 5 ISSUING PROJECTS", headerFont));
+            // --- SECTION 2: TOP ISSUING PROJECTS ---
+            document.add(new Paragraph("2. TOP 5 DỰ ÁN PHÁT HÀNH NHIỀU NHẤT", headerFont));
             document.add(new Paragraph(" ", normalFont));
 
-            PdfPTable topTable = new PdfPTable(3); // Name, Type, Issued
+            PdfPTable topTable = new PdfPTable(3);
             topTable.setWidthPercentage(100);
             topTable.setWidths(new float[]{4, 3, 3});
 
-            // Header
-            addTableHeader(topTable, "Project Name", tableHeaderFont);
-            addTableHeader(topTable, "Type", tableHeaderFont);
-            addTableHeader(topTable, "Total Issued", tableHeaderFont);
+            addTableHeader(topTable, "Tên dự án", tableHeaderFont);
+            addTableHeader(topTable, "Loại dự án", tableHeaderFont);
+            addTableHeader(topTable, "Số lượng phát hành", tableHeaderFont);
 
-            // Data
             for (ProjectReportDTO p : data.getTopProjects()) {
                 topTable.addCell(new Phrase(p.getName(), normalFont));
                 topTable.addCell(new Phrase(p.getType(), normalFont));
@@ -164,18 +161,18 @@ public class AdminReportService {
             document.add(new Paragraph(" ", normalFont));
 
             // --- SECTION 3: MONTHLY PROJECT DETAILS ---
-            document.add(new Paragraph("3. NEW PROJECTS DETAILS (This Month)", headerFont));
+            document.add(new Paragraph("3. CHI TIẾT DỰ ÁN MỚI TRONG THÁNG", headerFont));
             document.add(new Paragraph(" ", normalFont));
 
             PdfPTable detailTable = new PdfPTable(5);
             detailTable.setWidthPercentage(100);
             detailTable.setWidths(new float[]{3, 2, 2, 2, 2});
 
-            addTableHeader(detailTable, "Name", tableHeaderFont);
-            addTableHeader(detailTable, "Type", tableHeaderFont);
-            addTableHeader(detailTable, "Location", tableHeaderFont);
-            addTableHeader(detailTable, "Issued", tableHeaderFont);
-            addTableHeader(detailTable, "Retired", tableHeaderFont);
+            addTableHeader(detailTable, "Tên dự án", tableHeaderFont);
+            addTableHeader(detailTable, "Loại", tableHeaderFont);
+            addTableHeader(detailTable, "Khu vực", tableHeaderFont);
+            addTableHeader(detailTable, "Phát hành", tableHeaderFont);
+            addTableHeader(detailTable, "Đã hủy", tableHeaderFont);
 
             for (ProjectReportDTO p : data.getProjects()) {
                 detailTable.addCell(new Phrase(p.getName(), normalFont));
@@ -185,43 +182,38 @@ public class AdminReportService {
                 detailTable.addCell(new Phrase(formatNumber(p.getRetiredAmount()), normalFont));
             }
 
-            // ... Sau phần Top Issuing Projects ...
+            document.add(new Paragraph(" ", normalFont));
 
-            document.add(new Paragraph(" ", normalFont)); // Spacer
-
-// Tạo bảng lớn chứa 2 bảng con (để hiển thị song song)
             PdfPTable dualTable = new PdfPTable(2);
             dualTable.setWidthPercentage(100);
             dualTable.setSpacingBefore(10);
 
-// --- BẢNG TRÁI: TOP TRADED ---
+            // --- TOP TRADED ---
             PdfPCell leftCell = new PdfPCell();
             leftCell.setBorder(Rectangle.NO_BORDER);
-            leftCell.addElement(new Paragraph("TOP TRADED PROJECTS", new Font(Font.HELVETICA, 12, Font.BOLD)));
+            leftCell.addElement(new Paragraph("DỰ ÁN CÓ GIAO DỊCH CAO NHẤT", new Font(Font.HELVETICA, 12, Font.BOLD)));
 
-            PdfPTable tradeTable = new PdfPTable(2); // Name, Volume
+            PdfPTable tradeTable = new PdfPTable(2);
             tradeTable.setWidthPercentage(95);
-            tradeTable.setHorizontalAlignment(Element.ALIGN_LEFT);
-            addTableHeader(tradeTable, "Project", tableHeaderFont);
-            addTableHeader(tradeTable, "Volume", tableHeaderFont);
+            addTableHeader(tradeTable, "Dự án", tableHeaderFont);
+            addTableHeader(tradeTable, "Khối lượng", tableHeaderFont);
 
             for (ProjectReportDTO p : data.getTopTradedProjects()) {
                 tradeTable.addCell(new Phrase(p.getName(), normalFont));
-                tradeTable.addCell(new Phrase(formatNumber(p.getIssueAmount()), normalFont)); // issueAmount ở đây là trade volume
+                tradeTable.addCell(new Phrase(formatNumber(p.getIssueAmount()), normalFont));
             }
             leftCell.addElement(tradeTable);
             dualTable.addCell(leftCell);
 
-// --- BẢNG PHẢI: TOP RETIRED ---
+            // --- TOP RETIRED ---
             PdfPCell rightCell = new PdfPCell();
             rightCell.setBorder(Rectangle.NO_BORDER);
-            rightCell.addElement(new Paragraph("TOP RETIRED PROJECTS", new Font(Font.HELVETICA, 12, Font.BOLD)));
+            rightCell.addElement(new Paragraph("DỰ ÁN CÓ TÍN CHỈ HỦY NHIỀU NHẤT", new Font(Font.HELVETICA, 12, Font.BOLD)));
 
-            PdfPTable retireTable = new PdfPTable(2); // Name, Retired
+            PdfPTable retireTable = new PdfPTable(2);
             retireTable.setWidthPercentage(95);
-            retireTable.setHorizontalAlignment(Element.ALIGN_RIGHT);
-            addTableHeader(retireTable, "Project", tableHeaderFont);
-            addTableHeader(retireTable, "Retired", tableHeaderFont);
+            addTableHeader(retireTable, "Dự án", tableHeaderFont);
+            addTableHeader(retireTable, "Đã hủy", tableHeaderFont);
 
             for (ProjectReportDTO p : data.getTopRetiredProjects()) {
                 retireTable.addCell(new Phrase(p.getName(), normalFont));
@@ -232,8 +224,10 @@ public class AdminReportService {
 
             document.add(dualTable);
 
-            if(data.getProjects().isEmpty()) {
-                PdfPCell emptyCell = new PdfPCell(new Phrase("No new projects recorded this month.", normalFont));
+            if (data.getProjects().isEmpty()) {
+                PdfPCell emptyCell = new PdfPCell(
+                        new Phrase("Không có dự án mới nào được ghi nhận trong tháng này.", normalFont)
+                );
                 emptyCell.setColspan(5);
                 emptyCell.setHorizontalAlignment(Element.ALIGN_CENTER);
                 detailTable.addCell(emptyCell);
@@ -241,8 +235,10 @@ public class AdminReportService {
 
             document.add(detailTable);
 
-            // Footer
-            Paragraph footer = new Paragraph("\nGenerated by CarbonCredit System - " + java.time.LocalDate.now(), new Font(Font.HELVETICA, 10, Font.ITALIC, Color.GRAY));
+            Paragraph footer = new Paragraph(
+                    "\nĐược tạo bởi Hệ thống Tín chỉ Carbon - " + java.time.LocalDate.now(),
+                    new Font(Font.HELVETICA, 10, Font.ITALIC, Color.GRAY)
+            );
             footer.setAlignment(Element.ALIGN_RIGHT);
             document.add(footer);
 
@@ -251,9 +247,10 @@ public class AdminReportService {
 
         } catch (Exception e) {
             e.printStackTrace();
-            throw new RuntimeException("PDF Generation Error", e);
+            throw new RuntimeException("Lỗi tạo file PDF", e);
         }
     }
+
 
     // --- HELPER METHODS CHO PDF DEP ---
 
