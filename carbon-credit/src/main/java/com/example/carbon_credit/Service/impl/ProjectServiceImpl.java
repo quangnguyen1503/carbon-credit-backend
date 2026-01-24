@@ -116,6 +116,11 @@ public class ProjectServiceImpl implements ProjectService {
         return projectRepository.getProjectApproved(status);
     }
 
+    @Override
+    public Optional<ProjectResponse> getDetailProject(String projectId) {
+        return projectRepository.findProjectResponseById(projectId);
+    }
+
     public List<Project> getProjectsByStatuses(List<String> statuses) {
         return projectRepository.findByStatusIn(statuses);
     }

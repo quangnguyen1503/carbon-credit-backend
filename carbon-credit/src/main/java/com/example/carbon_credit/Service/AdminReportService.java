@@ -46,7 +46,7 @@ public class AdminReportService {
         }
 
         // 3. Lấy Top Projects
-        List<Object[]> topPrj = reportRepository.getTop5Projects();
+        List<Object[]> topPrj = reportRepository.getTop5Projects(month, year);
         List<ProjectReportDTO> topList = new ArrayList<>();
         for (Object[] row : topPrj) {
             ProjectReportDTO p = new ProjectReportDTO();
@@ -71,17 +71,13 @@ public class AdminReportService {
         }
         dto.setProjects(detailList);
 
-        // Trong hàm buildMonthlyAdminReport
-// ... code cũ ...
-
-// 5. Lấy Top Traded
         List<Object[]> tradedRaw = reportRepository.getTopTradedProjects(month, year);
         List<ProjectReportDTO> topTraded = new ArrayList<>();
         for (Object[] row : tradedRaw) {
             ProjectReportDTO pDto = new ProjectReportDTO();
             pDto.setName((String) row[0]);
             pDto.setType((String) row[1]);
-            pDto.setIssueAmount(((Number) row[2]).longValue()); // Tạm dùng trường issueAmount để chứa volume trade
+            pDto.setIssueAmount(((Number) row[2]).longValue());
             topTraded.add(pDto);
         }
         dto.setTopTradedProjects(topTraded);
@@ -98,7 +94,6 @@ public class AdminReportService {
         }
         dto.setTopRetiredProjects(topRetired);
 
-// ... gọi generatePdf ...
 
         return generatePdf(dto, month, year);
     }

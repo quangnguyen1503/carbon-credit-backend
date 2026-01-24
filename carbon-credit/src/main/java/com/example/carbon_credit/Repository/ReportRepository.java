@@ -39,11 +39,12 @@ public interface ReportRepository extends JpaRepository<Project, String> {
                COALESCE(SUM(cc.issue_amount), 0) as issued
         FROM projects p
         JOIN carbon_credits cc ON p.id = cc.project_id
+        WHERE MONTH(p.created_at) = :month AND YEAR(p.created_at) = :year
         GROUP BY p.name, p.type
         ORDER BY issued DESC
         LIMIT 5
     """, nativeQuery = true)
-    List<Object[]> getTop5Projects();
+    List<Object[]> getTop5Projects(int month, int year);
 
     // 4. Danh sách chi tiết trong tháng
     @Query(value = """

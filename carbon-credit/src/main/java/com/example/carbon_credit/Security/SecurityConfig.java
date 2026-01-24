@@ -50,6 +50,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/orders/snapshots").permitAll()
                         .requestMatchers("/api/projects/save").authenticated()  // Public nếu cần
                         .requestMatchers("/api/projects/ProjectSubmited").authenticated()
+                        .requestMatchers("/api/projects/ProjectApproved").authenticated()
                         .requestMatchers("/api/projects/ProjectVerified").authenticated()
                         .requestMatchers("/api/projects/ProjectApproved").permitAll()
                         .requestMatchers("/api/projects/MyProject").authenticated()
@@ -74,6 +75,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/projects/processed-project").authenticated()
                         .requestMatchers("/api/verifier-role/all").permitAll()
                         .requestMatchers("/api/projects/*").permitAll()
+                        .requestMatchers("/api/projects/detail/*").permitAll()
                         .requestMatchers("/api/wallet/my-credits").authenticated()
                         .requestMatchers("/api/wallet/my-natives").authenticated()
                         .requestMatchers("/api/notifications/my-notifications").authenticated()

@@ -16,6 +16,8 @@ public interface ProjectService {
     Project saveProject(Project project);
     List<Project> getAllProjectSubmited(String status);
 
+    Optional<ProjectResponse> getDetailProject(String projectId);
+
     List<ProjectResponse> getMyProject(String userId);
 
     Project getProject(String id);

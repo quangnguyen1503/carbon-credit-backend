@@ -37,5 +37,4 @@ public class WalletController {
         return walletService.getMyNatives(principal.getName());
     }
 
-
 }

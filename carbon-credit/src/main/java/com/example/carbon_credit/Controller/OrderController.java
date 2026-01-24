@@ -52,7 +52,7 @@ public class OrderController {
         try {
             String userId = authentication.getName();
 
-            log.info("📝 Placing order: userId={}, type={}, creditId={}, price={}, amount={}",
+            log.info(" Placing order: userId={}, type={}, creditId={}, price={}, amount={}",
                     userId, request.getOrderType(), request.getCreditId(),
                     request.getPrice(), request.getAmount());
 
@@ -97,13 +97,12 @@ public class OrderController {
                 }
             }
 
-            // ✅ Ensure OrderBook exists (auto-create on first order)
             tradingService.ensureOrderBookExists(request.getCreditId());
 
             // Place order
             Order placedOrder = tradingService.placeOrder(request, userId);
 
-            log.info("✅ Order placed successfully: orderId={}", placedOrder.getId());
+            log.info(" Order placed successfully: orderId={}", placedOrder.getId());
 
             return ResponseEntity.status(HttpStatus.CREATED).body(placedOrder);
 
@@ -200,12 +199,12 @@ public class OrderController {
         try {
             String userId = authentication.getName();
 
-            log.info("🚫 Cancelling order: orderId={}, userId={}", orderId, userId);
+            log.info(" Cancelling order: orderId={}, userId={}", orderId, userId);
 
             // Validate order exists
             Order order = orderService.findById(orderId);
             if (order == null) {
-                log.warn("⚠️ Order not found: {}", orderId);
+                log.warn("️ Order not found: {}", orderId);
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
                         "error", "Not Found",
                         "message", "Order not found"
@@ -214,7 +213,7 @@ public class OrderController {
 
             // Validate ownership
             if (!order.getUserId().equals(userId)) {
-                log.warn("⚠️ Unauthorized cancel attempt: userId={}, orderId={}", userId, orderId);
+                log.warn("️ Unauthorized cancel attempt: userId={}, orderId={}", userId, orderId);
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
                         "error", "Forbidden",
                         "message", "Not authorized to cancel this order"
@@ -223,7 +222,7 @@ public class OrderController {
 
             // Validate status
             if (!"OPEN".equals(order.getStatus()) && !"PENDING".equals(order.getStatus())) {
-                log.warn("⚠️ Cannot cancel order with status: {}", order.getStatus());
+                log.warn("️ Cannot cancel order with status: {}", order.getStatus());
                 return ResponseEntity.badRequest().body(Map.of(
                         "error", "Bad Request",
                         "message", "Order cannot be cancelled. Current status: " + order.getStatus()
@@ -234,21 +233,21 @@ public class OrderController {
             boolean cancelled = tradingService.cancelOrder(order);
 
             if (cancelled) {
-                log.info("✅ Order cancelled: orderId={}", orderId);
+                log.info(" Order cancelled: orderId={}", orderId);
                 return ResponseEntity.ok(Map.of(
                         "message", "Order cancelled successfully",
                         "orderId", orderId
                 ));
             }
 
-            log.error("❌ Failed to cancel order: orderId={}", orderId);
+            log.error(" Failed to cancel order: orderId={}", orderId);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
                     "error", "Internal Server Error",
                     "message", "Failed to cancel order"
             ));
 
         } catch (Exception e) {
-            log.error("❌ Error cancelling order: {}", e.getMessage(), e);
+            log.error(" Error cancelling order: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
                     "error", "Internal Server Error",
                     "message", "Failed to cancel order: " + e.getMessage()
@@ -267,7 +266,7 @@ public class OrderController {
         try {
             String userId = authentication.getName();
 
-            log.info("🔍 Getting order: orderId={}, userId={}", orderId, userId);
+            log.info(" Getting order: orderId={}, userId={}", orderId, userId);
 
             Order order = orderService.findById(orderId);
 
@@ -289,7 +288,7 @@ public class OrderController {
             return ResponseEntity.ok(order);
 
         } catch (Exception e) {
-            log.error("❌ Failed to get order: {}", e.getMessage(), e);
+            log.error(" Failed to get order: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
                     "error", "Internal Server Error",
                     "message", "Failed to retrieve order"
@@ -303,7 +302,7 @@ public class OrderController {
     @GetMapping("/snapshot/{creditId}")
     public ResponseEntity<?> getSnapshot(@PathVariable String creditId) {
         try {
-            log.info("📊 Getting orderbook snapshot: creditId={}", creditId);
+            log.info(" Getting orderbook snapshot: creditId={}", creditId);
 
             Map<String, Object> snapshot = orderService.getOrderBookSnapshot(creditId);
 
@@ -317,7 +316,7 @@ public class OrderController {
             return ResponseEntity.ok(snapshot);
 
         } catch (Exception e) {
-            log.error("❌ Failed to get snapshot: {}", e.getMessage(), e);
+            log.error(" Failed to get snapshot: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
                     "error", "Internal Server Error",
                     "message", "Failed to retrieve orderbook snapshot"
@@ -331,13 +330,13 @@ public class OrderController {
     @GetMapping("/snapshots")
     public ResponseEntity<?> getAllSnapshots() {
         try {
-            log.info("📊 Getting all orderbook snapshots");
+            log.info(" Getting all orderbook snapshots");
 
             Map<String, Map<String, Object>> snapshots = orderService.getAllOrderBookSnapshots();
             return ResponseEntity.ok(snapshots);
 
         } catch (Exception e) {
-            log.error("❌ Failed to get snapshots: {}", e.getMessage(), e);
+            log.error(" Failed to get snapshots: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
                     "error", "Internal Server Error",
                     "message", "Failed to retrieve orderbook snapshots"

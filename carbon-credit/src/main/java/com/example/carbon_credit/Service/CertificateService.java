@@ -1,6 +1,10 @@
 package com.example.carbon_credit.Service;
 
 import com.example.carbon_credit.DTO.*;
+import com.example.carbon_credit.DTO.BlockchainEventDTO;
+import com.example.carbon_credit.DTO.CertificateDetailResponse;
+import com.example.carbon_credit.DTO.CertificateRecordDTO;
+import com.example.carbon_credit.DTO.CertificateResponse;
 import com.example.carbon_credit.Entity.*;
 import com.example.carbon_credit.Repository.*;
 import com.example.carbon_credit.Util.BlockchainHelper;
@@ -42,6 +46,10 @@ public class CertificateService {
 
     @Autowired
     CertificateRecordRepository certificateRecordRepository;
+
+    @Autowired
+    CarbonCreditRepository carbonCreditRepository;
+
 
     @Autowired
     ContractService contractService;
@@ -225,12 +233,20 @@ public class CertificateService {
         }
     }
 
+
+
     private void getRecordFromChain(Certificate certificate) {
         try {
             List<CertificateRecordDTO> records = contractService.getCertificateRecords(certificate.getNftTokenId());
 
             for (CertificateRecordDTO record : records) {
-                CertificateRecord detail = CertificateRecord.builder().id(UUID.randomUUID().toString()).certificate(certificate).tokenId(record.getTokenId()).amount(record.getAmount()).build();
+                // 1. Lưu bản ghi chi tiết của chứng chỉ
+                CertificateRecord detail = CertificateRecord.builder()
+                        .id(UUID.randomUUID().toString())
+                        .certificate(certificate)
+                        .tokenId(record.getTokenId())
+                        .amount(record.getAmount())
+                        .build();
                 certificateRecordRepository.save(detail);
                 updateUserBalance(certificate.getUserId(), record.getTokenId(), record.getAmount());
             }
