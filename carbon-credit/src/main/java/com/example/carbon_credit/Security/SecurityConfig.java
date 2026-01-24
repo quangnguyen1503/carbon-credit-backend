@@ -69,7 +69,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/wallet/my-credits").authenticated()
                         .requestMatchers("/api/certificates/retire").authenticated()
                         .requestMatchers("/api/certificates/my-certificate").authenticated()
-                        .requestMatchers("/api/certificates/certificate-detail").authenticated()
+                        .requestMatchers("/api/certificates/certificate-detail/*").authenticated()
                         .requestMatchers("/api/projects/{projectId}/mint").authenticated()
                         .requestMatchers("/api/projects/processed-project").authenticated()
                         .requestMatchers("/api/verifier-role/all").permitAll()

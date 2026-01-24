@@ -41,6 +41,9 @@ public class RoleRequest {
     @UpdateTimestamp
     private LocalDateTime updatedAt;
 
-    @Version
-    private Long version;
+    @Column(name = "document_hash", length = 255)
+    private String documentHash;
+
+    @Version  // THÊM DÒNG NÀY: Optimistic locking để tránh conflict
+    private Long version;  // THÊM FIELD NÀY: Auto-increment khi update
 }

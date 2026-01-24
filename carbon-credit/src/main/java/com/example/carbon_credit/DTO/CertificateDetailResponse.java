@@ -14,7 +14,6 @@ import java.util.List;
 public class CertificateDetailResponse {
 
     private String certificateId;
-    private String projectName;
     private String userId;
     private BigInteger totalAmount;
     private String onchainTxHash;
@@ -23,9 +22,8 @@ public class CertificateDetailResponse {
 
     private List<RecordDetail> records;
 
-    public CertificateDetailResponse(String certificateId, String projectName, String userId, BigInteger totalAmount, String onchainTxHash, BigInteger nftTokenId, LocalDateTime createdAt) {
+    public CertificateDetailResponse(String certificateId, String userId, BigInteger totalAmount, String onchainTxHash, BigInteger nftTokenId, LocalDateTime createdAt) {
         this.certificateId = certificateId;
-        this.projectName = projectName;
         this.userId = userId;
         this.totalAmount = totalAmount;
         this.onchainTxHash = onchainTxHash;

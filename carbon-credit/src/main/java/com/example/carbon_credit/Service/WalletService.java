@@ -91,7 +91,7 @@ public class WalletService {
                 walletRepository.save(wallet);
 
                 wsService.notify(
-                        "Nạp tiền thành công! ",
+                        "Nạp tiền thành công!",
                         "Bạn vừa nạp " + amountInEther + " ETH vào sàn giao dịch.",
                         "SUCCESS", null, userAddress
                 );
@@ -158,7 +158,7 @@ public class WalletService {
                 processedTransactionRepository.save(processedTx);
 
                 wsService.notify(
-                        "Rút tiền thành công! ",
+                        "Rút tiền thành công!",
                         "Bạn vừa rút " + amountInEther + " ETH vào sàn giao dịch.",
                         "SUCCESS", null, userAddress
                 );
@@ -239,7 +239,7 @@ public class WalletService {
                 processedTransactionRepository.save(processedTx);
 
                 wsService.notify(
-                        "Nạp Credit thành công! ",
+                        "Nạp Credit thành công!",
                         "Bạn vừa nạp " + amount + " credit vào sàn giao dịch.",
                         "SUCCESS", null, userAddress
                 );
@@ -300,7 +300,7 @@ public class WalletService {
                 log.info(" Updated credit | Address: {} | Token: {} | Balance: {}", userAddress, creditTokenId, newBalance);
 
                 wsService.notify(
-                        "Rút credit thành công! ",
+                        "Rút credit thành công!",
                         "Bạn vừa rút " + amount + " credit từ sàn giao dịch.",
                         "SUCCESS", null, userAddress
                 );

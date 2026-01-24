@@ -38,8 +38,8 @@ public class JwtUtil {
     }
 
     private Claims extractAllClaims(String token) {
-        return Jwts.parser()       // << API duy nhất còn tồn tại
-                .verifyWith(getSigningKey())   // << thay thế setSigningKey()
+        return Jwts.parser()
+                .verifyWith(getSigningKey())
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();

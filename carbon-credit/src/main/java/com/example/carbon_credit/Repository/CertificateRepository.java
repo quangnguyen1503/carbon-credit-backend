@@ -21,7 +21,6 @@ public interface CertificateRepository extends JpaRepository<Certificate, String
     @Query("""
                 SELECT DISTINCT new com.example.carbon_credit.DTO.CertificateDetailResponse(
                     cert.id,
-                    p.name,
                     cert.userId,
                     cert.totalAmount,
                     cert.txHash,
@@ -29,9 +28,7 @@ public interface CertificateRepository extends JpaRepository<Certificate, String
                     cert.createdAt
                 )
                 FROM Certificate cert
-                    JOIN cert.records r
-                    JOIN CarbonCredit cc ON cc.tokenId = r.tokenId
-                    JOIN Project p ON p.id = cc.projectId
+                   
                     WHERE cert.id = :certId
             """)
     Optional<CertificateDetailResponse> findCertificateDetailById(@Param("certId") String certId);
