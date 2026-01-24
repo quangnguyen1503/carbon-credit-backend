@@ -5,7 +5,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -13,21 +12,19 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class AdminReportController {
 
-    private final AdminReportService reportService;
+        private final AdminReportService reportService;
 
-    @GetMapping("/monthly")
-    public ResponseEntity<byte[]> downloadMonthlyReport(
-            @RequestParam int month,
-            @RequestParam int year
-    ) {
-        byte[] pdf = reportService.buildMonthlyAdminReport(month, year);
+        @GetMapping("/monthly")
+        public ResponseEntity<byte[]> downloadMonthlyReport(
+                        @RequestParam int month,
+                        @RequestParam int year) {
+                byte[] pdf = reportService.buildMonthlyAdminReport(month, year);
 
-        return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION,
-                        "attachment; filename=admin-report-" + month + "-" + year + ".pdf")
-                .contentType(MediaType.APPLICATION_PDF)
-                .body(pdf);
-    }
-
+                return ResponseEntity.ok()
+                                .header(HttpHeaders.CONTENT_DISPOSITION,
+                                                "attachment; filename=admin-report-" + month + "-" + year + ".pdf")
+                                .contentType(MediaType.APPLICATION_PDF)
+                                .body(pdf);
+        }
 
 }

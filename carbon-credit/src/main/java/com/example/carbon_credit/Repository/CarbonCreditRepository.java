@@ -3,7 +3,6 @@ package com.example.carbon_credit.Repository;
 import com.example.carbon_credit.Entity.CarbonCredit;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-import java.math.BigInteger;
 import java.util.Optional;
 
 public interface CarbonCreditRepository extends JpaRepository<CarbonCredit, String> {

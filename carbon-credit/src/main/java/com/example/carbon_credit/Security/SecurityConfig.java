@@ -9,8 +9,6 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.UserDetailsService;
-//import org.springframework.security.crypto.bcrypt.BCryptPasswordlessEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
@@ -22,12 +20,13 @@ public class SecurityConfig {
     private JwtAuthenticationFilter jwtAuthenticationFilter;
 
     @Autowired
-    private UserDetailsService userDetailsService;  // Cần implement UserDetailsService
+    private UserDetailsService userDetailsService; // Cần implement UserDetailsService
 
-//    @Bean
-//    public PasswordEncoder passwordEncoder() {
-//        return new BCryptPasswordlessEncoder();  // Không dùng password vì auth bằng signature
-//    }
+    // @Bean
+    // public PasswordEncoder passwordEncoder() {
+    // return new BCryptPasswordlessEncoder(); // Không dùng password vì auth bằng
+    // signature
+    // }
 
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
@@ -39,22 +38,22 @@ public class SecurityConfig {
         http.csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/login").permitAll()  // Public login
+                        .requestMatchers("/api/auth/login").permitAll() // Public login
                         .requestMatchers("/ws/**").permitAll()
                         .requestMatchers("/api/market/ohlc/**").permitAll()
                         .requestMatchers("/api/market/recent/**").permitAll()
                         .requestMatchers("/snapshot/**").permitAll()
-                        .requestMatchers("/api/auth/*").permitAll()  // Existing login
-                        .requestMatchers("/api/orders/*").authenticated()  // Your orders endpoint
+                        .requestMatchers("/api/auth/*").permitAll() // Existing login
+                        .requestMatchers("/api/orders/*").authenticated() // Your orders endpoint
                         .requestMatchers("/api/orders/snapshot/**").permitAll()
                         .requestMatchers("/api/orders/snapshots").permitAll()
-                        .requestMatchers("/api/projects/save").authenticated()  // Public nếu cần
+                        .requestMatchers("/api/projects/save").authenticated() // Public nếu cần
                         .requestMatchers("/api/projects/ProjectSubmited").authenticated()
                         .requestMatchers("/api/projects/ProjectApproved").authenticated()
                         .requestMatchers("/api/projects/ProjectVerified").authenticated()
                         .requestMatchers("/api/projects/ProjectApproved").permitAll()
                         .requestMatchers("/api/projects/MyProject").authenticated()
-                        .requestMatchers("/api/projects/*/verify").authenticated()  // Bảo vệ verify
+                        .requestMatchers("/api/projects/*/verify").authenticated() // Bảo vệ verify
                         .requestMatchers("/api/projects/*/approved").authenticated()
                         .requestMatchers("/api/role-request/confirm").permitAll()
                         .requestMatchers("/api/role-request/request").authenticated()
@@ -82,10 +81,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/grafana/dashboards").permitAll()
                         .requestMatchers("/api/admin/reports/monthly").permitAll()
 
-
-
-                        .anyRequest().authenticated()
-                )
+                        .anyRequest().authenticated())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

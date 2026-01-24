@@ -6,8 +6,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
+
 @Data
 @Entity
 @Table(name = "credit_history")
@@ -39,4 +39,3 @@ public class CreditHistory {
     private LocalDateTime tradeAt;
 
 }
-

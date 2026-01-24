@@ -29,13 +29,13 @@ public class BlockPollerService {
     private final Web3j web3j;
     private final KafkaProducerService kafkaProducer;
     private final IndexerStateRepository stateRepository;
-    private final ChainConstants chainConstants; // ✅ Inject ChainConstants bean
-    
+    private final ChainConstants chainConstants;
+
     @Value("${indexer.confirmation-depth:1}")
     private int CONFIRMATION_DEPTH;
-    
+
     private final int MAX_BATCH_SIZE = 100;
-    
+
     @Value("${indexer.start-block:0}")
     private BigInteger START_BLOCK;
 
@@ -46,7 +46,7 @@ public class BlockPollerService {
             log.info(" Confirmation depth: {} blocks", CONFIRMATION_DEPTH);
             log.info(" Start block: {}", START_BLOCK);
             log.info(" Listened contracts: {}", chainConstants.getListenedAddresses());
-            
+
             if (!stateRepository.existsById(ChainConstants.INDEXER_ID)) {
                 stateRepository.save(new IndexerState(ChainConstants.INDEXER_ID, START_BLOCK));
                 log.info(" Initialized Indexer State at block: {}", START_BLOCK);
@@ -69,14 +69,14 @@ public class BlockPollerService {
             }
 
             BigInteger currentNetworkBlock = web3j.ethBlockNumber().send().getBlockNumber();
-            
+
             if (currentNetworkBlock == null) {
                 log.error(" Failed to get current block number from RPC");
                 return;
             }
 
             BigInteger safeBlock = currentNetworkBlock.subtract(BigInteger.valueOf(CONFIRMATION_DEPTH));
-            
+
             if (safeBlock.compareTo(BigInteger.ZERO) < 0) {
                 safeBlock = BigInteger.ZERO;
             }
@@ -87,7 +87,7 @@ public class BlockPollerService {
 
             if (fromBlock.compareTo(safeBlock) > 0) {
                 log.debug(" Already synced. Last: {}, Current: {}, Safe: {}",
-                    lastScanned, currentNetworkBlock, safeBlock);
+                        lastScanned, currentNetworkBlock, safeBlock);
                 return;
             }
 
@@ -118,9 +118,9 @@ public class BlockPollerService {
                 return;
             }
 
-            //  Use getter to get listened addresses
+            // Use getter to get listened addresses
             List<String> listenedAddresses = chainConstants.getListenedAddresses();
-            
+
             if (listenedAddresses == null || listenedAddresses.isEmpty()) {
                 log.error(" No contracts to listen! Check configuration");
                 return;
@@ -129,20 +129,19 @@ public class BlockPollerService {
             log.debug(" Filtering events from contracts: {}", listenedAddresses);
 
             EthFilter filter = new EthFilter(
-                DefaultBlockParameter.valueOf(from), 
-                DefaultBlockParameter.valueOf(to), 
-                listenedAddresses
-            );
+                    DefaultBlockParameter.valueOf(from),
+                    DefaultBlockParameter.valueOf(to),
+                    listenedAddresses);
 
             EthLog ethLog = web3j.ethGetLogs(filter).send();
-            
+
             if (ethLog.hasError()) {
                 log.error(" RPC error: {}", ethLog.getError().getMessage());
                 return;
             }
 
             List<EthLog.LogResult> logs = ethLog.getLogs();
-            
+
             if (logs == null) {
                 log.warn(" RPC returned null logs for blocks {} -> {}", from, to);
                 return;
@@ -163,7 +162,7 @@ public class BlockPollerService {
                     }
 
                     Log logData = (Log) logResult.get();
-                    
+
                     if (logData == null) {
                         log.warn(" Skipping null log data");
                         continue;
@@ -200,9 +199,9 @@ public class BlockPollerService {
             }
 
             log.info(" Event detected: {} | Block: {} | TxHash: {}",
-                eventType, 
-                logData.getBlockNumber(), 
-                logData.getTransactionHash());
+                    eventType,
+                    logData.getBlockNumber(),
+                    logData.getTransactionHash());
 
             BlockchainEventDTO eventDTO = new BlockchainEventDTO();
             eventDTO.setTransactionHash(logData.getTransactionHash());
@@ -211,8 +210,6 @@ public class BlockPollerService {
             eventDTO.setEventType(eventType);
             eventDTO.setTopics(logData.getTopics());
             eventDTO.setData(logData.getData());
-
-
 
             kafkaProducer.sendOnChainEvent(eventDTO);
             log.info(" Sent {} to Kafka", eventType);
@@ -223,32 +220,56 @@ public class BlockPollerService {
     }
 
     private String identifyEventType(String hash) {
-        if (hash == null) return null;
-        
-        if (hash.equals(ChainConstants.SuperAdmin_Transferred_Hash)) return "SUPERADMIN_TRANSFERRED";
-        if (hash.equals(ChainConstants.Admin_Added_Hash)) return "ADMIN_ADDED";
-        if (hash.equals(ChainConstants.Admin_Removed_Hash)) return "ADMIN_REMOVED";
-        if (hash.equals(ChainConstants.Government_Added_Hash)) return "GOVERNMENT_ADDED";
-        if (hash.equals(ChainConstants.Government_Removed_Hash)) return "GOVERNMENT_REMOVED";
-        if (hash.equals(ChainConstants.Organization_Verified_Hash)) return "ORGANIZATION_VERIFIED";
-        if (hash.equals(ChainConstants.Organization_Revoked_Hash)) return "ORGANIZATION_REVOKED";
-        if (hash.equals(ChainConstants.CreditQuota_Updated_Hash)) return "CREDITQUOTA_UPDATED";
-        if (hash.equals(ChainConstants.Project_Approved_Hash)) return "PROJECT_APPROVED";
-        if (hash.equals(ChainConstants.Credit_Minted_Hash)) return "CREDIT_MINTED";
-        if (hash.equals(ChainConstants.Credit_Retired_Hash)) return "CREDIT_RETIRED";
-        if (hash.equals(ChainConstants.Certificate_Minted_Hash)) return "CERTIFICATE_MINTED";
-        if (hash.equals(ChainConstants.Batch_Certificate_Retired_Hash)) return "BATCH_CERTIFICATE_RETIRED";
-        if (hash.equals(ChainConstants.Project_Revoked_Hash)) return "PROJECT_REVOKED";
-        if (hash.equals(ChainConstants.Native_Deposited_Hash)) return "NATIVE_DEPOSITED";
-        if (hash.equals(ChainConstants.Native_Withdrawn_Hash)) return "NATIVE_WITHDRAWN";
-        if (hash.equals(ChainConstants.Credit_Deposited_Hash)) return "CREDIT_DEPOSITED";
-        if (hash.equals(ChainConstants.Credit_Withdrawn_Hash)) return "CREDIT_WITHDRAWN";
-        if (hash.equals(ChainConstants.Balance_Locked_Hash)) return "BALANCE_LOCKED";
-        if (hash.equals(ChainConstants.Balance_Unlocked_Hash)) return "BALANCE_UNLOCKED";
-        if (hash.equals(ChainConstants.Trade_Settled_Hash)) return "TRADE_SETTLED";
-        if (hash.equals(ChainConstants.Batch_Settled_Hash)) return "BATCH_SETTLED";
-        if (hash.equals(ChainConstants.Settlement_Operator_Updated_Hash)) return "SETTLEMENT_UPDATED";
-        
+        if (hash == null)
+            return null;
+
+        if (hash.equals(ChainConstants.SuperAdmin_Transferred_Hash))
+            return "SUPERADMIN_TRANSFERRED";
+        if (hash.equals(ChainConstants.Admin_Added_Hash))
+            return "ADMIN_ADDED";
+        if (hash.equals(ChainConstants.Admin_Removed_Hash))
+            return "ADMIN_REMOVED";
+        if (hash.equals(ChainConstants.Government_Added_Hash))
+            return "GOVERNMENT_ADDED";
+        if (hash.equals(ChainConstants.Government_Removed_Hash))
+            return "GOVERNMENT_REMOVED";
+        if (hash.equals(ChainConstants.Organization_Verified_Hash))
+            return "ORGANIZATION_VERIFIED";
+        if (hash.equals(ChainConstants.Organization_Revoked_Hash))
+            return "ORGANIZATION_REVOKED";
+        if (hash.equals(ChainConstants.CreditQuota_Updated_Hash))
+            return "CREDITQUOTA_UPDATED";
+        if (hash.equals(ChainConstants.Project_Approved_Hash))
+            return "PROJECT_APPROVED";
+        if (hash.equals(ChainConstants.Credit_Minted_Hash))
+            return "CREDIT_MINTED";
+        if (hash.equals(ChainConstants.Credit_Retired_Hash))
+            return "CREDIT_RETIRED";
+        if (hash.equals(ChainConstants.Certificate_Minted_Hash))
+            return "CERTIFICATE_MINTED";
+        if (hash.equals(ChainConstants.Batch_Certificate_Retired_Hash))
+            return "BATCH_CERTIFICATE_RETIRED";
+        if (hash.equals(ChainConstants.Project_Revoked_Hash))
+            return "PROJECT_REVOKED";
+        if (hash.equals(ChainConstants.Native_Deposited_Hash))
+            return "NATIVE_DEPOSITED";
+        if (hash.equals(ChainConstants.Native_Withdrawn_Hash))
+            return "NATIVE_WITHDRAWN";
+        if (hash.equals(ChainConstants.Credit_Deposited_Hash))
+            return "CREDIT_DEPOSITED";
+        if (hash.equals(ChainConstants.Credit_Withdrawn_Hash))
+            return "CREDIT_WITHDRAWN";
+        if (hash.equals(ChainConstants.Balance_Locked_Hash))
+            return "BALANCE_LOCKED";
+        if (hash.equals(ChainConstants.Balance_Unlocked_Hash))
+            return "BALANCE_UNLOCKED";
+        if (hash.equals(ChainConstants.Trade_Settled_Hash))
+            return "TRADE_SETTLED";
+        if (hash.equals(ChainConstants.Batch_Settled_Hash))
+            return "BATCH_SETTLED";
+        if (hash.equals(ChainConstants.Settlement_Operator_Updated_Hash))
+            return "SETTLEMENT_UPDATED";
+
         return null;
     }
 }

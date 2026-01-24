@@ -5,14 +5,12 @@ import com.example.carbon_credit.Entity.User;
 import com.example.carbon_credit.Repository.NotificationRepository;
 import com.example.carbon_credit.Repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.security.Principal;
 import java.util.List;
-import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/notifications")
@@ -22,6 +20,7 @@ public class NotificationController {
 
     @Autowired
     UserRepository userRepository;
+
     @GetMapping("/my-notifications")
     public List<Notification> getMyNotifications(Principal principal) {
         // Lấy địa chỉ ví từ Token (đã map vào username)
@@ -31,7 +30,6 @@ public class NotificationController {
         User user = userRepository.findById(walletAddress)
                 .orElseThrow(() -> new RuntimeException("User not found"));
         String role = user.getRoleId();
-
 
         return notificationRepository.findMyNotifications(walletAddress, role);
     }

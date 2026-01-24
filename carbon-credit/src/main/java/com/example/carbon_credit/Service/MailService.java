@@ -1,18 +1,17 @@
 package com.example.carbon_credit.Service;
 
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;  // THÊM: Import cho log
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.MailSender;
 import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;  // THÊM: Import cho JavaMailSender
 import org.springframework.stereotype.Service;
 
 @Service
 public class MailService {
 
-    private static final Logger log = LoggerFactory.getLogger(MailService.class);  // THÊM: Khai báo log
+    private static final Logger log = LoggerFactory.getLogger(MailService.class); // THÊM: Khai báo log
 
     @Autowired
     private MailSender mailSender;
@@ -29,8 +28,7 @@ public class MailService {
                 "You have requested role: " + requestedRole + "\n\n" +
                         "Please confirm your request by clicking the link below:\n" +
                         confirmLink + "\n\n" +
-                        "This link will expire in 15 minutes."
-        );
+                        "This link will expire in 15 minutes.");
 
         try {
             mailSender.send(mail);
@@ -51,8 +49,7 @@ public class MailService {
                 "Dear User,\n\n" +
                         "Your request for role '" + Role + "' has been approved by admin.\n" +
                         "You can now access OWNER features.\n\n" +
-                        "Thank you!\nCarbon Credit Team"
-        );
+                        "Thank you!\nCarbon Credit Team");
 
         try {
             mailSender.send(message);
@@ -73,8 +70,7 @@ public class MailService {
                 "Dear User,\n\n" +
                         "Your request for role '" + Role + "' has been rejected.\n" +
                         "Please try again or contact support.\n\n" +
-                        "Thank you!\nCarbon Credit Team"
-        );
+                        "Thank you!\nCarbon Credit Team");
 
         try {
             mailSender.send(message);
@@ -94,8 +90,7 @@ public class MailService {
                 "Dear User,\n\n" +
                         "Your has been deleted role by admin.\n" +
                         "Please try again or contact support.\n\n" +
-                        "Thank you!\nCarbon Credit Team"
-        );
+                        "Thank you!\nCarbon Credit Team");
 
         try {
             mailSender.send(message);
@@ -114,8 +109,7 @@ public class MailService {
         message.setText(
                 "Dear User,\n\n" +
                         "Your request for role '" + Role + "' has been approved.\n" +
-                        "Thank you!\nCarbon Credit Team"
-        );
+                        "Thank you!\nCarbon Credit Team");
 
         try {
             mailSender.send(message);
@@ -126,7 +120,7 @@ public class MailService {
         }
     }
 
-    public void sendVerifyProject(String toEmail, String projectName){
+    public void sendVerifyProject(String toEmail, String projectName) {
         SimpleMailMessage message = new SimpleMailMessage();
         message.setFrom(systemEmail);
         message.setTo(toEmail);
@@ -135,19 +129,18 @@ public class MailService {
                 "Dear Owner,\n\n" +
                         "Your request for project '" + projectName + "' has been verified.\n" +
                         "Please try again or contact support.\n\n" +
-                        "Thank you!\nCarbon Credit Team"
-        );
+                        "Thank you!\nCarbon Credit Team");
 
         try {
             mailSender.send(message);
             log.info(toEmail);
-        }catch (Exception e){
+        } catch (Exception e) {
             log.error("fail to send email to {}: {}", toEmail, e.getMessage(), e);
 
         }
     }
 
-    public void sendApproveProject(String toEmail, String projectName){
+    public void sendApproveProject(String toEmail, String projectName) {
         SimpleMailMessage message = new SimpleMailMessage();
         message.setFrom(systemEmail);
         message.setTo(toEmail);
@@ -157,18 +150,18 @@ public class MailService {
                 "Dear Owner,\n\n" +
                         "Your request for project '" + projectName + "' has been approved.\n" +
                         "Please try again or contact support.\n\n" +
-                        "Thank you!\nCarbon Credit Team"
-        );
+                        "Thank you!\nCarbon Credit Team");
 
         try {
             mailSender.send(message);
             log.info(toEmail);
-        }catch (Exception e){
+        } catch (Exception e) {
             log.error("fail to send email to {}: {}", toEmail, e.getMessage(), e);
 
         }
     }
-    public void sendRejectProject(String toEmail, String projectName, String reason){
+
+    public void sendRejectProject(String toEmail, String projectName, String reason) {
         SimpleMailMessage message = new SimpleMailMessage();
         message.setFrom(systemEmail);
         message.setTo(toEmail);
@@ -179,13 +172,12 @@ public class MailService {
                         "Your request for project '" + projectName + "' has been reject.\n" +
                         "Reason: [Add reason if available]\n\n" + reason +
                         "Please try again or contact support.\n\n" +
-                        "Thank you!\nCarbon Credit Team"
-        );
+                        "Thank you!\nCarbon Credit Team");
 
         try {
             mailSender.send(message);
             log.info(toEmail);
-        }catch (Exception e){
+        } catch (Exception e) {
             log.error("fail to send email to {}: {}", toEmail, e.getMessage(), e);
 
         }

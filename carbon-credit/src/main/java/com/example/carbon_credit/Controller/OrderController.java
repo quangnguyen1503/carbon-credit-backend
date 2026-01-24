@@ -1,7 +1,6 @@
 package com.example.carbon_credit.Controller;
 
 import com.example.carbon_credit.DTO.PlaceOrderCommandDTO;
-import com.example.carbon_credit.DTO.ProjectWithCreditDTO;
 import com.example.carbon_credit.Entity.CarbonCredit;
 import com.example.carbon_credit.Entity.Order;
 import com.example.carbon_credit.Entity.Project;
@@ -47,8 +46,7 @@ public class OrderController {
     @PostMapping("/place")
     public ResponseEntity<?> placeOrder(
             @Valid @RequestBody PlaceOrderCommandDTO request,
-            Authentication authentication
-    ) {
+            Authentication authentication) {
         try {
             String userId = authentication.getName();
 
@@ -58,14 +56,12 @@ public class OrderController {
 
             // Validate credit exists
             CarbonCredit credit = carbonCreditService.getCarbonCreditByTokenId(
-                    Long.parseLong(request.getCreditId())
-            );
+                    Long.parseLong(request.getCreditId()));
 
             if (credit == null) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
                         "error", "Not Found",
-                        "message", "Carbon credit not found"
-                ));
+                        "message", "Carbon credit not found"));
             }
 
             // Check if project is APPROVED
@@ -73,8 +69,7 @@ public class OrderController {
             if (project == null || !ProjectStatus.APPROVED.equals(project.getStatus())) {
                 return ResponseEntity.badRequest().body(Map.of(
                         "error", "Bad Request",
-                        "message", "Project must be approved by government before trading"
-                ));
+                        "message", "Project must be approved by government before trading"));
             }
 
             // Additional validation for SELL orders
@@ -83,8 +78,7 @@ public class OrderController {
                 if (!project.getOwnerId().equals(userId)) {
                     return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
                             "error", "Forbidden",
-                            "message", "You don't own this carbon credit"
-                    ));
+                            "message", "You don't own this carbon credit"));
                 }
 
                 // Check available credits
@@ -92,8 +86,7 @@ public class OrderController {
                 if (request.getAmount() > availableCredits) {
                     return ResponseEntity.badRequest().body(Map.of(
                             "error", "Bad Request",
-                            "message", "Insufficient credits. Available: " + availableCredits
-                    ));
+                            "message", "Insufficient credits. Available: " + availableCredits));
                 }
             }
 
@@ -110,17 +103,14 @@ public class OrderController {
             log.error("❌ Invalid order: {}", e.getMessage());
             return ResponseEntity.badRequest().body(Map.of(
                     "error", "Bad Request",
-                    "message", e.getMessage()
-            ));
+                    "message", e.getMessage()));
         } catch (Exception e) {
             log.error("❌ Failed to place order: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
                     "error", "Internal Server Error",
-                    "message", "Failed to place order: " + e.getMessage()
-            ));
+                    "message", "Failed to place order: " + e.getMessage()));
         }
     }
-
 
     /**
      * Get user's orders (history + open orders)
@@ -129,8 +119,7 @@ public class OrderController {
     public ResponseEntity<?> getMyOrders(
             Authentication authentication,
             @RequestParam(required = false) String status,
-            @RequestParam(required = false) String creditId
-    ) {
+            @RequestParam(required = false) String creditId) {
         try {
             String userId = authentication.getName();
 
@@ -155,8 +144,7 @@ public class OrderController {
             log.error("❌ Failed to get orders: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
                     "error", "Internal Server Error",
-                    "message", "Failed to retrieve orders"
-            ));
+                    "message", "Failed to retrieve orders"));
         }
     }
 
@@ -166,8 +154,7 @@ public class OrderController {
     @GetMapping("/my-orders/open")
     public ResponseEntity<?> getMyOpenOrders(
             Authentication authentication,
-            @RequestParam(required = false) String creditId
-    ) {
+            @RequestParam(required = false) String creditId) {
         try {
             String userId = authentication.getName();
 
@@ -183,8 +170,7 @@ public class OrderController {
             log.error("❌ Failed to get open orders: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
                     "error", "Internal Server Error",
-                    "message", "Failed to retrieve open orders"
-            ));
+                    "message", "Failed to retrieve open orders"));
         }
     }
 
@@ -194,8 +180,7 @@ public class OrderController {
     @DeleteMapping("/{orderId}")
     public ResponseEntity<?> cancelOrder(
             @PathVariable String orderId,
-            Authentication authentication
-    ) {
+            Authentication authentication) {
         try {
             String userId = authentication.getName();
 
@@ -207,8 +192,7 @@ public class OrderController {
                 log.warn("️ Order not found: {}", orderId);
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
                         "error", "Not Found",
-                        "message", "Order not found"
-                ));
+                        "message", "Order not found"));
             }
 
             // Validate ownership
@@ -216,8 +200,7 @@ public class OrderController {
                 log.warn("️ Unauthorized cancel attempt: userId={}, orderId={}", userId, orderId);
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
                         "error", "Forbidden",
-                        "message", "Not authorized to cancel this order"
-                ));
+                        "message", "Not authorized to cancel this order"));
             }
 
             // Validate status
@@ -225,8 +208,7 @@ public class OrderController {
                 log.warn("️ Cannot cancel order with status: {}", order.getStatus());
                 return ResponseEntity.badRequest().body(Map.of(
                         "error", "Bad Request",
-                        "message", "Order cannot be cancelled. Current status: " + order.getStatus()
-                ));
+                        "message", "Order cannot be cancelled. Current status: " + order.getStatus()));
             }
 
             // Cancel trong matching engine + update DB + unlock balance
@@ -236,22 +218,19 @@ public class OrderController {
                 log.info(" Order cancelled: orderId={}", orderId);
                 return ResponseEntity.ok(Map.of(
                         "message", "Order cancelled successfully",
-                        "orderId", orderId
-                ));
+                        "orderId", orderId));
             }
 
             log.error(" Failed to cancel order: orderId={}", orderId);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
                     "error", "Internal Server Error",
-                    "message", "Failed to cancel order"
-            ));
+                    "message", "Failed to cancel order"));
 
         } catch (Exception e) {
             log.error(" Error cancelling order: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
                     "error", "Internal Server Error",
-                    "message", "Failed to cancel order: " + e.getMessage()
-            ));
+                    "message", "Failed to cancel order: " + e.getMessage()));
         }
     }
 
@@ -261,8 +240,7 @@ public class OrderController {
     @GetMapping("/{orderId}")
     public ResponseEntity<?> getOrderById(
             @PathVariable String orderId,
-            Authentication authentication
-    ) {
+            Authentication authentication) {
         try {
             String userId = authentication.getName();
 
@@ -273,16 +251,14 @@ public class OrderController {
             if (order == null) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
                         "error", "Not Found",
-                        "message", "Order not found"
-                ));
+                        "message", "Order not found"));
             }
 
             // Validate ownership
             if (!order.getUserId().equals(userId)) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
                         "error", "Forbidden",
-                        "message", "Not authorized to view this order"
-                ));
+                        "message", "Not authorized to view this order"));
             }
 
             return ResponseEntity.ok(order);
@@ -291,8 +267,7 @@ public class OrderController {
             log.error(" Failed to get order: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
                     "error", "Internal Server Error",
-                    "message", "Failed to retrieve order"
-            ));
+                    "message", "Failed to retrieve order"));
         }
     }
 
@@ -309,8 +284,7 @@ public class OrderController {
             if (snapshot == null || snapshot.isEmpty()) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
                         "error", "Not Found",
-                        "message", "Orderbook not found for credit: " + creditId
-                ));
+                        "message", "Orderbook not found for credit: " + creditId));
             }
 
             return ResponseEntity.ok(snapshot);
@@ -319,8 +293,7 @@ public class OrderController {
             log.error(" Failed to get snapshot: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
                     "error", "Internal Server Error",
-                    "message", "Failed to retrieve orderbook snapshot"
-            ));
+                    "message", "Failed to retrieve orderbook snapshot"));
         }
     }
 
@@ -339,8 +312,7 @@ public class OrderController {
             log.error(" Failed to get snapshots: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
                     "error", "Internal Server Error",
-                    "message", "Failed to retrieve orderbook snapshots"
-            ));
+                    "message", "Failed to retrieve orderbook snapshots"));
         }
     }
 }
