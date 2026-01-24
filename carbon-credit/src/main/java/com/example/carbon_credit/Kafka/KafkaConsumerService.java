@@ -3,11 +3,13 @@ package com.example.carbon_credit.Kafka;
 import com.example.carbon_credit.DTO.BlockchainEventDTO;
 import com.example.carbon_credit.DTO.PlaceOrderCommandDTO;
 import com.example.carbon_credit.DTO.TradeEventDTO;
+import com.example.carbon_credit.Entity.FailedEvent;
+import com.example.carbon_credit.Entity.Order;
 import com.example.carbon_credit.MatchingEngine.MatchingEngine;
+import com.example.carbon_credit.Repository.FailedEventRepository;
+import com.example.carbon_credit.Repository.OrderRepository;
 import com.example.carbon_credit.Service.*;
 import com.example.carbon_credit.Service.impl.ProjectServiceImpl;
-import com.example.carbon_credit.Repository.OrderRepository;
-import com.example.carbon_credit.Entity.Order;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -16,16 +18,19 @@ import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class KafkaConsumerService {
 
+    private static final int MAX_RETRY_ATTEMPTS = 5;
+    private static final long RETRY_DELAY_MS = 100;
     private final MatchingEngine matchingEngine;
     private final KafkaProducerService kafkaProducerService;
     private final WsService wsService;
@@ -37,26 +42,17 @@ public class KafkaConsumerService {
     private final CarbonCreditService carbonCreditService;
     private final CertificateService certificateService;
     private final OrderRepository orderRepository;
+    private final FailedEventRepository failedEventRepository;
     private final OhlcService ohlcService;
-
-    private static final int MAX_RETRY_ATTEMPTS = 5;
-    private static final long RETRY_DELAY_MS = 100;
 
     /**
      * Consumer 1: Xử lý Khớp lệnh (Core Logic)
      * Quan trọng: concurrency phải <= số partitions của topic 'orders'
      */
-    @KafkaListener(topics = "orders", groupId = "carbon-matching-group", // Tách riêng group cho matching
-            concurrency = "3", containerFactory = "kafkaListenerContainerFactory")
-    public void consumeOrder(PlaceOrderCommandDTO command,
-            Acknowledgment ack,
-            @Header(KafkaHeaders.RECEIVED_PARTITION) int partition,
-            @Header(KafkaHeaders.OFFSET) long offset) throws Exception {
+    @KafkaListener(topics = "orders", groupId = "carbon-matching-group", concurrency = "3", containerFactory = "kafkaListenerContainerFactory")
+    public void consumeOrder(PlaceOrderCommandDTO command, Acknowledgment ack, @Header(KafkaHeaders.RECEIVED_PARTITION) int partition, @Header(KafkaHeaders.OFFSET) long offset) throws Exception {
 
-        long startTime = System.nanoTime();
-
-        log.info(" [Kafka CONSUMER] [P-{}|O-{}] RECEIVED Order: {} | Type: {} | CreditId: {}",
-                partition, offset, command.getOrderId(), command.getOrderType(), command.getCreditId());
+        log.info(" [Kafka CONSUMER] [P-{}|O-{}] RECEIVED Order: {} | Type: {} | CreditId: {}", partition, offset, command.getOrderId(), command.getOrderType(), command.getCreditId());
 
         try {
             if (command.getPrice() == null || command.getAmount() <= 0) {
@@ -87,7 +83,6 @@ public class KafkaConsumerService {
 
             // 4. Commit offset khi mọi thứ thành công
             ack.acknowledge();
-
 
         } catch (Exception e) {
             log.error("CRITICAL ERROR processing order {}: {}", command.getOrderId(), e.getMessage(), e);
@@ -127,21 +122,41 @@ public class KafkaConsumerService {
         }
     }
 
+    @KafkaListener(topics = "onchain-events-dlq", groupId = "dlq-processor-group", containerFactory = "kafkaListenerContainerFactory")
+    public void consumeDlqEvent(BlockchainEventDTO event, Acknowledgment ack) {
+        try {
+            log.warn("Processing DLQ event: {} | Type: {} | Error: {}", event.getTransactionHash(), event.getEventType(), event.getErrorMessage());
+
+            // 1. Save to database for admin review
+            FailedEvent failedEvent = FailedEvent.builder().id(UUID.randomUUID().toString()).transactionHash(event.getTransactionHash()).eventType(event.getEventType()).contractAddress(event.getContractAddress()).blockNumber(event.getBlockNumber() != null ? event.getBlockNumber().longValue() : null).eventData(event.getData()).errorMessage(event.getErrorMessage()).failedAt(event.getFailedAt() != null ? LocalDateTime.parse(event.getFailedAt()) : LocalDateTime.now()).status("PENDING_REVIEW").createdAt(LocalDateTime.now()).build();
+
+            failedEventRepository.save(failedEvent);
+
+            // 2. Notify admins via WebSocket
+            wsService.notify("Blockchain Event Failed", String.format("Event %s (%s) failed: %s", event.getEventType(), event.getTransactionHash().substring(0, 10) + "...", event.getErrorMessage()), "ERROR", List.of("ADMIN"), null);
+
+            log.info("DLQ event saved to database: {}", failedEvent.getId());
+
+            ack.acknowledge();
+
+        } catch (Exception e) {
+            log.error("Failed to process DLQ event: {}", e.getMessage(), e);
+            ack.acknowledge();
+        }
+    }
+
     @KafkaListener(topics = "onchain-events", groupId = "carbon-market-group", containerFactory = "kafkaListenerContainerFactory")
     public void consumeBlockchainEvent(BlockchainEventDTO event, Acknowledgment ack) {
 
         int attempt = 0;
         boolean success = false;
+        Exception lastException = null;
 
         while (attempt < MAX_RETRY_ATTEMPTS && !success) {
             try {
                 attempt++;
 
-                log.info(" Received event: {} | TxHash: {} (Attempt {}/{})",
-                        event.getEventType(),
-                        event.getTransactionHash(),
-                        attempt,
-                        MAX_RETRY_ATTEMPTS);
+                log.info(" Received event: {} | TxHash: {} (Attempt {}/{})", event.getEventType(), event.getTransactionHash(), attempt, MAX_RETRY_ATTEMPTS);
 
                 processEvent(event);
 
@@ -154,8 +169,8 @@ public class KafkaConsumerService {
                 log.info(" Successfully processed event: {}", event.getTransactionHash());
 
             } catch (ObjectOptimisticLockingFailureException e) {
-                log.warn(" Optimistic locking conflict (attempt {}/{}): {}",
-                        attempt, MAX_RETRY_ATTEMPTS, e.getMessage());
+                log.warn(" Optimistic locking conflict (attempt {}/{}): {}", attempt, MAX_RETRY_ATTEMPTS, e.getMessage());
+                lastException = e;
 
                 if (attempt < MAX_RETRY_ATTEMPTS) {
                     try {
@@ -166,24 +181,24 @@ public class KafkaConsumerService {
                         log.error(" Retry interrupted");
                         break;
                     }
-                } else {
-                    log.error(" Failed after {} attempts: {}", MAX_RETRY_ATTEMPTS, e.getMessage());
-
-                    if (ack != null) {
-                        ack.acknowledge();
-                    }
                 }
 
             } catch (Exception e) {
-                log.error(" Failed to process event {}: {}",
-                        event.getTransactionHash(),
-                        e.getMessage(),
-                        e);
+                log.error(" Failed to process event {}: {}", event.getTransactionHash(), e.getMessage(), e);
+                lastException = e;
+                break;
+            }
+        }
 
+        if (!success && lastException != null) {
+            log.error(" Event {} failed after {} attempts. Sending to DLQ.", event.getTransactionHash(), attempt);
+            try {
+                kafkaProducerService.sendToDeadLetterQueue(event, lastException.getMessage());
                 if (ack != null) {
                     ack.acknowledge();
                 }
-                break;
+            } catch (Exception dlqEx) {
+                log.error(" CRITICAL: Failed to send to DLQ. Event will be retried: {}", dlqEx.getMessage());
             }
         }
     }

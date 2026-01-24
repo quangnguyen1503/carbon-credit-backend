@@ -40,7 +40,7 @@ public class SettlementService {
      */
     public synchronized void addTradeToBatch(TradeEventDTO trade) {
         batchQueue.add(trade);
-        log.info("📦 Added trade {} to batch (size: {})", trade.getTradeId(), batchQueue.size());
+        log.info(" Added trade {} to batch (size: {})", trade.getTradeId(), batchQueue.size());
 
         // Auto settle nếu batch đủ 10 trades
         if (batchQueue.size() >= BATCH_SIZE) {
@@ -64,7 +64,7 @@ public class SettlementService {
         }
 
         long batchId = batchIdCounter.getAndIncrement();
-        log.info("⛓️ Settling batch {} with {} trades...", batchId, currentBatch);
+        log.info(" Settling batch {} with {} trades...", batchId, currentBatch);
 
         batchQueue.clear();
         List<TradeDTO> trades = new ArrayList<>();
@@ -116,7 +116,7 @@ public class SettlementService {
                     sellOrderIds.add(tradeEvent.getSellOrderId());
                     validEvents.add(tradeEvent);
                 } catch (Exception e) {
-                    log.error("⚠️ Error preparing trade: {}", e.getMessage());
+                    log.error(" Error preparing trade: {}", e.getMessage());
                     invalidEvents.add(tradeEvent);
                 }
             }
@@ -127,7 +127,7 @@ public class SettlementService {
             }
 
             if (trades.isEmpty()) {
-                log.warn("⚠️ No valid trades to send.");
+                log.warn(" No valid trades to send.");
                 return;
             }
 
@@ -136,11 +136,10 @@ public class SettlementService {
                     buyOrderIds, sellOrderIds);
             String txHash = receipt.getTransactionHash();
 
-            // ✅ UPDATE DATABASE: Save Trade + Update Order Status (Atomic)
             saveSettledTradesToDB(validEvents, txHash);
 
         } catch (Exception e) {
-            log.error("❌ Failed to settle batch {}: {}", batchId, e.getMessage(), e);
+            log.error(" Failed to settle batch {}: {}", batchId, e.getMessage(), e);
             if (!validEvents.isEmpty()) {
                 handleFailedBatch(validEvents, "On-Chain Transaction Failed: " + e.getMessage());
             }
@@ -179,7 +178,7 @@ public class SettlementService {
 
         tradeRepository.saveAll(tradesToSave);
         orderRepository.saveAll(ordersMap.values()); // Lưu tất cả các order đã update
-        log.info("💾 DB Updated: {} Trades Settled", tradesToSave.size());
+        log.info(" DB Updated: {} Trades Settled", tradesToSave.size());
     }
 
     private void updateOrderState(Order order, int tradeAmount) {
@@ -189,16 +188,16 @@ public class SettlementService {
         if (order.getRemainingAmount() == 0) {
             order.setStatus("SETTLEMENT");
             order.setUpdatedAt(LocalDateTime.now());
-            log.info(" ✅ Order {} -> SETTLEMENT", order.getId());
+            log.info(" Order {} -> SETTLEMENT", order.getId());
         } else {
             order.setStatus("PARTIALLY_FILLED");
             order.setUpdatedAt(LocalDateTime.now());
-            log.info("   🔄 Order {} -> Remaining: {}", order.getId(), newRemaining);
+            log.info(" Order {} -> Remaining: {}", order.getId(), newRemaining);
         }
     }
 
     private void handleFailedBatch(List<TradeEventDTO> failedTrades, String errorReason) {
-        log.warn("⚠️ Rolling back {} trades. Reason: {}", failedTrades.size(), errorReason);
+        log.warn(" Rolling back {} trades. Reason: {}", failedTrades.size(), errorReason);
 
         for (TradeEventDTO trade : failedTrades) {
             // Với mỗi giao dịch thất bại, ta phải mở khóa cho cả Lệnh Mua và Lệnh Bán
@@ -215,10 +214,10 @@ public class SettlementService {
 
     private void unlockOrderOnChain(String orderId) {
         try {
-            log.info("🔓 Requesting Unlock for Order: {}", orderId);
+            log.info("Requesting Unlock for Order: {}", orderId);
             contractService.unlockBalance(orderId);
         } catch (Exception e) {
-            log.error("❌ CRITICAL: Failed to unlock order {} on-chain. Admin attention required!", orderId, e);
+            log.error("CRITICAL: Failed to unlock order {} on-chain. Admin attention required!", orderId, e);
         }
     }
 
@@ -231,5 +230,20 @@ public class SettlementService {
             wsService.notifyOrderFailure(order.getUserId(), order.getId(), order.getCreditId(),
                     "Settlement transaction failed on Blockchain. Funds unlocked." + reason);
         });
+    }
+
+    public synchronized List<TradeEventDTO> removeTradesForOrder(String orderId) {
+        List<TradeEventDTO> removedTrades = new ArrayList<>();
+
+        batchQueue.removeIf(trade -> {
+            boolean shouldRemove = trade.getBuyOrderId().equals(orderId) || trade.getSellOrderId().equals(orderId);
+            if (shouldRemove) {
+                removedTrades.add(trade);
+                log.info("Removed trade {} from batch queue due to order {} cancellation", trade.getTradeId(), orderId);
+            }
+            return shouldRemove;
+        });
+
+        return removedTrades;
     }
 }

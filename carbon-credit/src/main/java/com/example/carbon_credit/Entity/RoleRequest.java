@@ -41,6 +41,6 @@ public class RoleRequest {
     @UpdateTimestamp
     private LocalDateTime updatedAt;
 
-    @Version  // THÊM DÒNG NÀY: Optimistic locking để tránh conflict
-    private Long version;  // THÊM FIELD NÀY: Auto-increment khi update
+    @Version
+    private Long version;
 }

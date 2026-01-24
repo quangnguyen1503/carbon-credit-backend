@@ -17,6 +17,11 @@ public class PersistenceService {
 
     @Transactional
     public void saveHistoricalTrade(TradeEventDTO event) {
+        if (tradeRepository.existsById(event.getTradeId())) {
+            log.warn("Trade {} already exists. Skipping.", event.getTradeId());
+            return;
+        }
+
         Trade trade = Trade.builder()
                 .id(event.getTradeId())
                 .buyOrderId(event.getBuyOrderId())
@@ -26,10 +31,10 @@ public class PersistenceService {
                 .price(event.getPrice())
                 .totalValue(event.getTotalValue())
                 .tradeAt(event.getTradeAt())
-                .status("PENDING")
+                .status("PENDING_SETTLEMENT")
                 .build();
 
         tradeRepository.save(trade);
-        log.info("💾 Trade {} saved to database", event.getTradeId());
+        log.info("Trade {} saved to database with status PENDING_SETTLEMENT", event.getTradeId());
     }
 }

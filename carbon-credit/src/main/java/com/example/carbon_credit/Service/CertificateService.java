@@ -47,9 +47,6 @@ public class CertificateService {
     @Autowired
     CertificateRecordRepository certificateRecordRepository;
 
-    @Autowired
-    CarbonCreditRepository carbonCreditRepository;
-
 
     @Autowired
     ContractService contractService;
@@ -115,7 +112,6 @@ public class CertificateService {
 
         return detail;
     }
-
 
 
     public Page<Certificate> getCertificateWithPaginationAndSort(String status, int pageNumber, int pageSize, String sortBy, String sortDirection) {

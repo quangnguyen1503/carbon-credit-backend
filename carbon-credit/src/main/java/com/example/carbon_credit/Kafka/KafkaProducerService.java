@@ -20,7 +20,6 @@ public class KafkaProducerService {
     private final KafkaTemplate<String, Object> kafkaTemplate;
 
     public void sendOrder(PlaceOrderCommandDTO command) {
-        // Sử dụng creditId làm key để đảm bảo partition ordering
         String key = command.getCreditId();
 
         CompletableFuture<SendResult<String, Object>> future = kafkaTemplate.send("orders", key, command);
@@ -30,7 +29,6 @@ public class KafkaProducerService {
                 log.debug("Order sent: {} -> Partition: {}", command.getOrderId(),
                         result.getRecordMetadata().partition());
             } else {
-                // Đây là lỗi nghiêm trọng: Lệnh không vào được hàng đợi
                 log.error(" FAILED to send order {}: {}", command.getOrderId(), ex.getMessage());
             }
         });
@@ -74,6 +72,25 @@ public class KafkaProducerService {
         } catch (Exception e) {
             log.error("Failed to send event to Kafka: {}", e.getMessage(), e);
             throw new RuntimeException("Kafka send failed", e);
+        }
+    }
+
+    /**
+     * Send failed events to Dead Letter Queue for manual review/retry
+     */
+    public void sendToDeadLetterQueue(BlockchainEventDTO event, String errorMessage) {
+        try {
+            // Add error info to event
+            event.setErrorMessage(errorMessage);
+            event.setFailedAt(java.time.LocalDateTime.now().toString());
+
+            kafkaTemplate.send("onchain-events-dlq", event.getTransactionHash(), event).get();
+
+            log.warn("Event {} sent to DLQ. Error: {}", event.getTransactionHash(), errorMessage);
+
+        } catch (Exception e) {
+            log.error("CRITICAL: Failed to send to DLQ: {}", e.getMessage(), e);
+            throw new RuntimeException("DLQ send failed", e);
         }
     }
 }

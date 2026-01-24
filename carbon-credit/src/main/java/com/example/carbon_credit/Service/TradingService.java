@@ -1,6 +1,7 @@
 package com.example.carbon_credit.Service;
 
 import com.example.carbon_credit.DTO.PlaceOrderCommandDTO;
+import com.example.carbon_credit.DTO.TradeEventDTO;
 import com.example.carbon_credit.Entity.CarbonCredit;
 import com.example.carbon_credit.Entity.Order;
 import com.example.carbon_credit.Kafka.KafkaProducerService;
@@ -9,12 +10,14 @@ import com.example.carbon_credit.Repository.CarbonCreditRepository;
 import com.example.carbon_credit.Repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -29,6 +32,8 @@ public class TradingService {
     private final MatchingEngine matchingEngine;
     private final ContractService contractService;
     private final WsService wsService;
+    @Lazy
+    private final SettlementService settlementService;
 
     private static final BigDecimal SLIPPAGE_BUFFER = new BigDecimal("1.05");
 
@@ -111,7 +116,6 @@ public class TradingService {
                 .updatedAt(LocalDateTime.now())
                 .build();
 
-
         // Lưu DB trước
         orderRepository.save(order);
 
@@ -147,68 +151,138 @@ public class TradingService {
                 .amount(request.getAmount())
                 .build();
 
-
         // Gửi vào Kafka (bất đồng bộ)
         kafkaProducerService.sendOrder(command);
 
         // Giả sử wsService.notify(title, message, type, role, wallet)
         wsService.notify(
-                String.format("Đặt %s thành công", order.getOrderType()),  // Title: "Đặt BUY thành công" (hoặc SELL)
+                String.format("Đặt %s thành công", order.getOrderType()),
                 String.format("Đặt %s với giá: %s và số lượng %s.",
                         order.getOrderType(),
                         order.getPrice(),
-                        order.getAmount()),  // Message: "Đặt BUY với giá: 1000 và số lượng 5."
-                "SUCCESS",  // Type
-                null,       // Role (null nếu gửi cá nhân)
-                userId.toLowerCase()  // Wallet/Recipient
-        );
+                        order.getAmount()),
+                "SUCCESS",
+                null,
+                userId.toLowerCase());
 
-        log.info("📤 Order {} sent to matching engine", order.getId());
+        log.info(" Order {} sent to matching engine", order.getId());
         return order;
     }
 
     /**
-     * Cancel order: Remove từ matching engine + Update DB
+     * Cancel order: Remove từ matching engine + Remove from settlement batch +
+     * Update DB
      */
     @Transactional
     public boolean cancelOrder(Order order) {
-        // Cancel trong matching engine
-        boolean removed = matchingEngine.cancelOrder(order.getCreditId(), order.getId());
+        String orderId = order.getId();
 
-        if (removed) {
-            try {
-                contractService.unlockBalance(order.getId());
-            } catch (Exception e) {
-                throw new RuntimeException("Failed to unlock balance on blockchain", e);
-            }
+        boolean removedFromBook = matchingEngine.cancelOrder(order.getCreditId(), orderId);
 
-            order.setStatus("CANCELLED");
-            order.setUpdatedAt(LocalDateTime.now());
-            orderRepository.save(order);
+        List<TradeEventDTO> removedTrades = settlementService.removeTradesForOrder(orderId);
+        boolean removedFromBatch = !removedTrades.isEmpty();
 
-            Map<String, Object> snapshot = matchingEngine.getOrderBookSnapshot(order.getCreditId());
-            wsService.broadcastOrderBookUpdate(order.getCreditId(), snapshot);
-
-            // B. Thông báo riêng cho User (Để cập nhật UI "My Orders")
-            wsService.notifyOrderCancelled(order.getUserId(), order.getId(), order.getCreditId());
-
-            log.info("✅ Order {} cancelled", order.getId());
-            return true;
+        if (!removedFromBook && !removedFromBatch) {
+            log.warn(" Order {} not found in OrderBook or BatchQueue - cannot cancel", orderId);
+            wsService.notify(
+                    "Hủy lệnh thất bại",
+                    String.format("Không thể hủy lệnh %s. Lệnh đã được xử lý hoặc không tồn tại.", orderId),
+                    "ERROR",
+                    null,
+                    order.getUserId().toLowerCase());
+            return false;
         }
 
-        log.warn("❌ Failed to cancel order {}", order.getId());
-        // ... (existing cancelOrder method remains same)
+        // Nếu có trades bị xóa từ batch, cần unlock counterparty orders
+        if (removedFromBatch) {
+            for (TradeEventDTO trade : removedTrades) {
+                String counterpartyOrderId = trade.getBuyOrderId().equals(orderId)
+                        ? trade.getSellOrderId()
+                        : trade.getBuyOrderId();
+
+                try {
+                    // Unlock counterparty order on-chain
+                    contractService.unlockBalance(counterpartyOrderId);
+                    log.info(" Unlocked counterparty order {} due to cancellation of {}", counterpartyOrderId,
+                            orderId);
+
+                    // Restore counterparty order to OPEN status and add back to orderbook
+                    orderRepository.findById(counterpartyOrderId).ifPresent(counterpartyOrder -> {
+                        // Restore remaining amount that was matched
+                        counterpartyOrder
+                                .setRemainingAmount(counterpartyOrder.getRemainingAmount() + trade.getAmount());
+                        counterpartyOrder.setStatus("OPEN");
+                        counterpartyOrder.setUpdatedAt(LocalDateTime.now());
+                        orderRepository.save(counterpartyOrder);
+
+                        // Re-add to OrderBook for matching
+                        PlaceOrderCommandDTO restoreCommand = PlaceOrderCommandDTO.builder()
+                                .orderId(counterpartyOrder.getId())
+                                .userId(counterpartyOrder.getUserId())
+                                .creditId(counterpartyOrder.getCreditId())
+                                .orderType(counterpartyOrder.getOrderType())
+                                .orderCondition(counterpartyOrder.getOrderCondition())
+                                .price(counterpartyOrder.getPrice())
+                                .amount(counterpartyOrder.getRemainingAmount())
+                                .build();
+
+                        // Process order - sẽ match nếu có order đối ứng, hoặc thêm vào book
+                        List<TradeEventDTO> newTrades = matchingEngine.processOrder(restoreCommand);
+                        if (!newTrades.isEmpty()) {
+                            // Nếu có trades mới, gửi vào settlement
+                            for (TradeEventDTO newTrade : newTrades) {
+                                settlementService.addTradeToBatch(newTrade);
+                            }
+                            log.info("Restored order {} matched {} new trades", counterpartyOrderId, newTrades.size());
+                        } else {
+                            log.info("Restored order {} added to OrderBook", counterpartyOrderId);
+                        }
+
+                        // Notify counterparty
+                        wsService.notify(
+                                "Giao dịch bị hủy",
+                                String.format("Lệnh của bạn được khôi phục do đối tác hủy giao dịch."),
+                                "WARNING",
+                                null,
+                                counterpartyOrder.getUserId().toLowerCase());
+                    });
+                } catch (Exception e) {
+                    log.error(" Failed to unlock counterparty order {}: {}", counterpartyOrderId, e.getMessage());
+                }
+            }
+        }
+
+        // 4. Unlock balance for cancelled order
+        try {
+            contractService.unlockBalance(orderId);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to unlock balance on blockchain", e);
+        }
+
+        // 5. Update order status
+        order.setStatus("CANCELLED");
+        order.setUpdatedAt(LocalDateTime.now());
+        orderRepository.save(order);
+
+        // 6. Broadcast updates
+        Map<String, Object> snapshot = matchingEngine.getOrderBookSnapshot(order.getCreditId());
+        wsService.broadcastOrderBookUpdate(order.getCreditId(), snapshot);
+        wsService.notifyOrderCancelled(order.getUserId(), order.getId(), order.getCreditId());
+
+        log.info("Order {} cancelled successfully (fromBook={}, fromBatch={})",
+                orderId, removedFromBook, removedFromBatch);
+
         wsService.notify(
-                String.format("Hủy %s thành công", order.getOrderType()),  // Title: "Hủy BUY thành công" (hoặc SELL)
+                String.format("Hủy %s thành công", order.getOrderType()),
                 String.format("Bạn đã hủy %s với giá: %s và số lượng %s.",
                         order.getOrderType(),
                         order.getPrice(),
-                        order.getAmount()),  // Message: "Bạn đã hủy BUY với giá: 1000 và số lượng 5."
-                "WARNING",  // Type: WARNING để phân biệt (có thể dùng INFO nếu nhẹ hơn)
-                null,       // Role (null nếu gửi cá nhân)
-                order.getUserId().toLowerCase()      // Wallet/Recipient (từ request hoặc order.getUserId())
-        );
-        return false;
+                        order.getAmount()),
+                "SUCCESS",
+                null,
+                order.getUserId().toLowerCase());
+
+        return true;
     }
 
     /**
@@ -242,7 +316,7 @@ public class TradingService {
 
         wsService.notifyOrderExpired(order.getUserId(), order.getId(), order.getCreditId());
 
-        log.info("✅ Order {} expired successfully", order.getId());
+        log.info(" Order {} expired successfully", order.getId());
     }
 
     public boolean hasActiveOrderBook(String projectId) {

@@ -25,15 +25,12 @@ public class OrderRecoveryService implements CommandLineRunner {
     public void run(String... args) throws Exception {
         log.info("Starting Order Recovery...");
 
-        // 1. Fetch all OPEN orders
         List<Order> openOrders = orderRepository.findByStatusOrderByCreatedAtAsc("OPEN");
 
         if (openOrders.isEmpty()) {
             log.info("No open orders found to recover.");
             return;
         }
-
-        log.info("Recovering {} open orders...", openOrders.size());
 
         for (Order order : openOrders) {
             try {
@@ -47,13 +44,11 @@ public class OrderRecoveryService implements CommandLineRunner {
     }
 
     private void restoreOrder(Order order) {
-        // Skip if remaining amount is 0
         if (order.getRemainingAmount() <= 0) {
             log.warn("Order {} has status OPEN but remaining amount is 0. Skipping.", order.getId());
             return;
         }
 
-        // Convert to DTO
         PlaceOrderCommandDTO command = PlaceOrderCommandDTO.builder()
                 .orderId(order.getId())
                 .userId(order.getUserId())
@@ -64,9 +59,6 @@ public class OrderRecoveryService implements CommandLineRunner {
                 .amount(order.getRemainingAmount())
                 .build();
 
-        // Feed back into Matching Engine
-        // IMPORTANT: If recovery triggers trades (due to race condition or missed
-        // settlement), process them!
         List<TradeEventDTO> trades = matchingEngine.processOrder(command);
 
         if (!trades.isEmpty()) {
