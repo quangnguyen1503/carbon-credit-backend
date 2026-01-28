@@ -42,7 +42,6 @@ public class SettlementService {
         batchQueue.add(trade);
         log.info(" Added trade {} to batch (size: {})", trade.getTradeId(), batchQueue.size());
 
-        // Auto settle nếu batch đủ 10 trades
         if (batchQueue.size() >= BATCH_SIZE) {
             settleBatch();
         }
@@ -82,7 +81,6 @@ public class SettlementService {
                     Order sellOrder = orderRepository.findById(tradeEvent.getSellOrderId()).orElseThrow(
                             () -> new IllegalArgumentException("Sell order not found: " + tradeEvent.getSellOrderId()));
 
-                    // userId chính là wallet address
                     String buyerAddress = buyOrder.getUserId().trim().toLowerCase();
                     String sellerAddress = sellOrder.getUserId().trim().toLowerCase();
 
@@ -107,8 +105,8 @@ public class SettlementService {
                     BigInteger totalValue = priceWei.multiply(creditAmount);
 
                     // Create trade struct
-                    TradeDTO trade = TradeDTO.builder().buyer(buyerAddress) // ← Wallet address
-                            .seller(sellerAddress) // ← Wallet address
+                    TradeDTO trade = TradeDTO.builder().buyer(buyerAddress)
+                            .seller(sellerAddress)
                             .creditTokenId(creditTokenId).creditAmount(creditAmount).totalValue(totalValue).build();
 
                     trades.add(trade);
@@ -121,7 +119,6 @@ public class SettlementService {
                 }
             }
 
-            // 2. Xử lý các lệnh lỗi (Hoàn tiền ngay)
             if (!invalidEvents.isEmpty()) {
                 handleFailedBatch(invalidEvents, "Validation Failed");
             }

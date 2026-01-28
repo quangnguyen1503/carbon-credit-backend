@@ -104,9 +104,9 @@ public class WsService {
                     "/topic/price/" + creditId,
                     priceUpdate);
 
-            log.debug("💲 Broadcasted price update: {} @ {}", creditId, price);
+            log.debug(" Broadcasted price update: {} @ {}", creditId, price);
         } catch (Exception e) {
-            log.error("❌ Failed to broadcast price update: {}", e.getMessage());
+            log.error(" Failed to broadcast price update: {}", e.getMessage());
         }
     }
 
@@ -183,9 +183,9 @@ public class WsService {
                     "/queue/orders",
                     notification);
 
-            log.info("🔔 Sent cancel notification to user {}", userId);
+            log.info(" Sent cancel notification to user {}", userId);
         } catch (Exception e) {
-            log.error("❌ Failed to send cancel notification: {}", e.getMessage());
+            log.error(" Failed to send cancel notification: {}", e.getMessage());
         }
     }
 
@@ -207,9 +207,9 @@ public class WsService {
                     "/queue/orders",
                     notification);
 
-            log.info("🔔 Sent expired notification to user {}", userId);
+            log.info(" Sent expired notification to user {}", userId);
         } catch (Exception e) {
-            log.error("❌ Failed to send expired notification: {}", e.getMessage());
+            log.error(" Failed to send expired notification: {}", e.getMessage());
         }
     }
 
@@ -227,7 +227,7 @@ public class WsService {
             try {
                 return new BigDecimal((String) value);
             } catch (NumberFormatException e) {
-                log.warn("⚠️ Invalid number format for BigDecimal: {}", value);
+                log.warn(" Invalid number format for BigDecimal: {}", value);
                 return BigDecimal.ZERO;
             }
         }

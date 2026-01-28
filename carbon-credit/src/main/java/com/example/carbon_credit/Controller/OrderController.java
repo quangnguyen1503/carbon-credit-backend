@@ -8,6 +8,7 @@ import com.example.carbon_credit.Service.CarbonCreditService;
 import com.example.carbon_credit.Service.OrderService;
 import com.example.carbon_credit.Service.ProjectService;
 import com.example.carbon_credit.Service.TradingService;
+import com.example.carbon_credit.Repository.WalletCreditRepository;
 import com.example.carbon_credit.constants.ProjectStatus;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +19,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.security.Principal;
 import java.util.List;
 import java.util.Map;
 
@@ -39,6 +41,9 @@ public class OrderController {
 
     @Autowired
     private final ProjectService projectService;
+
+    @Autowired
+    private final WalletCreditRepository walletCreditRepository;
 
     /**
      * Place order → Send to Kafka → Matching engine xử lý bất đồng bộ
@@ -74,15 +79,27 @@ public class OrderController {
 
             // Additional validation for SELL orders
             if ("SELL".equalsIgnoreCase(request.getOrderType())) {
-                // Check if user owns the project (simplified ownership check)
-                if (!project.getOwnerId().equals(userId)) {
+                // Check if user owns this carbon credit (userId = wallet address)
+                String walletAddress = userId;
+                Long tokenId = Long.parseLong(request.getCreditId());
+
+                var walletCreditOpt = walletCreditRepository.findByWalletAddressAndTokenId(walletAddress, tokenId);
+
+                if (walletCreditOpt.isEmpty()) {
                     return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
                             "error", "Forbidden",
                             "message", "You don't own this carbon credit"));
                 }
 
-                // Check available credits
-                long availableCredits = credit.getIssueAmount() - credit.getRetiredAmount();
+                var walletCredit = walletCreditOpt.get();
+                long availableCredits = walletCredit.getAvailableBalance().longValue();
+
+                if (availableCredits <= 0) {
+                    return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
+                            "error", "Forbidden",
+                            "message", "You don't have any available credits to sell"));
+                }
+
                 if (request.getAmount() > availableCredits) {
                     return ResponseEntity.badRequest().body(Map.of(
                             "error", "Bad Request",
@@ -100,12 +117,12 @@ public class OrderController {
             return ResponseEntity.status(HttpStatus.CREATED).body(placedOrder);
 
         } catch (IllegalArgumentException e) {
-            log.error("❌ Invalid order: {}", e.getMessage());
+            log.error(" Invalid order: {}", e.getMessage());
             return ResponseEntity.badRequest().body(Map.of(
                     "error", "Bad Request",
                     "message", e.getMessage()));
         } catch (Exception e) {
-            log.error("❌ Failed to place order: {}", e.getMessage(), e);
+            log.error(" Failed to place order: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
                     "error", "Internal Server Error",
                     "message", "Failed to place order: " + e.getMessage()));
@@ -180,9 +197,9 @@ public class OrderController {
     @DeleteMapping("/{orderId}")
     public ResponseEntity<?> cancelOrder(
             @PathVariable String orderId,
-            Authentication authentication) {
+            Principal principal) {
         try {
-            String userId = authentication.getName();
+            String userId = principal.getName();
 
             log.info(" Cancelling order: orderId={}, userId={}", orderId, userId);
 
